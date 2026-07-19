@@ -1,0 +1,15 @@
+services:
+  remote-eink-dashboard:
+    build: .
+    container_name: remote-eink-dashboard
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8486:8486"
+    volumes:
+      - dashboard-data:/data
+    mem_limit: 256m
+    cpus: 0.50
+
+volumes:
+  dashboard-data:

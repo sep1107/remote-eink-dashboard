@@ -1,0 +1,25 @@
+.env
+.env.*
+!.env.example
+.dashboard.env
+.dashboard-data/
+.dashboard-font.ttf
+data/
+**/__pycache__/
+.pytest_cache/
+*.pyc
+*.log
+*.pem
+*.key
+*.p12
+*.pfx
+authorized_keys*
+.DS_Store
+
+android/.gradle/
+android/local.properties
+android/app/build/
+*.apk
+
+# Personal deployment notes stay local and are not part of the public project.
+远程墨水看板.md

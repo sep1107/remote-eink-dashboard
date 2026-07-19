@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>安装日历天气组件 · v26</title>
+<style>
+  :root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#101725;color:#edf3ff}
+  body{margin:0;padding:56px 22px;background:radial-gradient(circle at 90% 0,#284b78 0,transparent 25rem),#101725}
+  main{max-width:460px;margin:auto;padding:28px 24px;border:1px solid #2b3a55;border-radius:26px;background:#172136}
+  h1{margin:0 0 8px;font-size:25px}.version{display:inline-block;margin-bottom:14px;padding:5px 10px;border-radius:999px;background:#263958;color:#b9d9f3;font-size:13px;font-weight:700}p{margin:0 0 12px;color:#b6c4da;line-height:1.65}.sizes{margin:0;padding-left:1.25em;color:#d5dfef;line-height:1.7}.note{margin-top:14px;color:#91a4be;font-size:14px}button{width:100%;margin:18px 0 12px;padding:15px;border:0;border-radius:15px;background:#4d90c7;color:#fff;font-size:17px;font-weight:700}small{display:block;color:#8292aa;line-height:1.55}.manual{display:none;margin-top:12px;color:#9dcdf4;font-size:15px;font-weight:700}.manual.show{display:block}
+</style>
+<main>
+  <h1>日历天气组件</h1>
+  <div class="version">当前版本 v26 · 2026-07-19</div>
+  <p>一份脚本同时适配三种桌面组件：</p>
+  <ul class="sizes">
+    <li>小号：年月日、星期和农历，去掉月历并放大显示。</li>
+    <li>中号：年月日、星期、农历和完整月历。</li>
+    <li>大号：当前天气、生活指标、日出日落和四日预报。</li>
+  </ul>
+  <p class="note">安装方法：先把脚本中的 <code>dashboard.example.com</code> 改成你自己的域名，再复制到 Scriptable。大号组件参数可填北京、上海、广州、深圳、成都、杭州、武汉或西安，留空默认北京。数据约每 30 分钟更新。</p>
+  <button id="copy">复制 v26 组件脚本</button>
+  <small id="status">公开版本不包含任何私人域名、设备令牌或账号数据。</small>
+  <a id="manual" class="manual" target="_blank" rel="noopener">自动复制仍失败？打开脚本文本</a>
+</main>
+<script>
+  const button = document.querySelector("#copy");
+  const status = document.querySelector("#status");
+  const manual = document.querySelector("#manual");
+  const scriptUrl = "./calendar-weather-large.js?version=26";
+  const scriptPromise = fetch(scriptUrl).then(r => r.ok ? r.text() : Promise.reject());
+  manual.href = scriptUrl;
+
+  function legacyCopy(script) {
+    const area = document.createElement("textarea");
+    area.value = script;
+    area.setAttribute("readonly", "");
+    area.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;padding:0;border:0;opacity:0;pointer-events:none;";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    area.setSelectionRange(0, area.value.length);
+    const copied = document.execCommand("copy");
+    document.body.removeChild(area);
+    return copied;
+  }
+
+  async function copyScript(script) {
+    if (navigator.clipboard && window.isSecureContext) {
+      try {
+        await navigator.clipboard.writeText(script);
+        return;
+      } catch (_) {}
+    }
+    if (!legacyCopy(script)) throw new Error("copy failed");
+  }
+
+  button.onclick = async () => {
+    try {
+      const script = await scriptPromise;
+      await copyScript(script);
+      button.textContent = "已复制，去 Scriptable 粘贴";
+      status.textContent = "已复制 v26。新建脚本后粘贴并运行一次，再添加需要尺寸的组件。";
+    } catch (_) {
+      status.textContent = "Safari 未允许自动复制。请点下面链接打开脚本，长按后全选复制。";
+      manual.classList.add("show");
+    }
+  };
+</script>

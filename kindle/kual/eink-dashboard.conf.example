@@ -1,0 +1,2 @@
+DASHBOARD_URL="https://dashboard.example.com/frame/DEVICE_ID/DEVICE_TOKEN.png"
+DASHBOARD_INTERVAL=900

@@ -1,0 +1,12 @@
+{
+  "items": [
+    {
+      "name": "Remote E-Ink Dashboard",
+      "items": [
+        {"name": "Start", "action": "./eink-dashboard.sh", "params": "start", "exitmenu": true, "refresh": false},
+        {"name": "Refresh once", "action": "./eink-dashboard.sh", "params": "refresh", "exitmenu": true, "refresh": false},
+        {"name": "Stop", "action": "./eink-dashboard.sh", "params": "stop", "exitmenu": true, "refresh": false}
+      ]
+    }
+  ]
+}

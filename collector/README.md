@@ -20,7 +20,16 @@ python3 push_deepseek_balance.py
 
 ## Claude Code
 
-`claude_statusline_push.py` reads rate-limit fields from Claude Code's `statusLine` stdin JSON. It does not read Claude login files or transmit subscription credentials.
+Two independent options; use whichever fits.
+
+`claude_statusline_push.py` reads rate-limit fields from Claude Code's `statusLine` stdin JSON. It does not read Claude login files or transmit subscription credentials. Only pushes while Claude Code is running and only if the build emits `rate_limits`.
+
+`push_cockpit_claude.mjs` reads the current Claude account's quota from Cockpit Tools' local encrypted cache — the same mechanism as the Codex collector, so it can share the Codex collector's scheduler. It picks Cockpit's currently selected account, skips Gateway/API accounts that have no 5H/7D window, and retains only quota percentages, reset times, and an anonymised plan label; OAuth, cookies, email, and raw usage blobs are discarded before serialization. Refreshes on a schedule regardless of whether Claude Code is running.
+
+```sh
+node push_cockpit_claude.mjs --check   # summarise without sending
+node push_cockpit_claude.mjs --json    # print the exact push payload
+```
 
 ## Codex / Cockpit Tools
 

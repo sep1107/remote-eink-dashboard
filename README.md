@@ -19,13 +19,13 @@ Current production frames captured on 2026-07-22.
 ### KO1 / Android 4.2 (landscape)
 
 <p align="center">
-  <img src="docs/screenshots/landscape.png" alt="Landscape e-ink dashboard sample" width="720">
+  <img src="docs/screenshots/landscape.png" alt="KO1 Android 4.2 landscape dashboard frame" width="720">
 </p>
 
 ### KPW3 (portrait)
 
 <p align="center">
-  <img src="docs/screenshots/portrait.png" alt="Portrait e-ink dashboard sample" width="360">
+  <img src="docs/screenshots/portrait.png" alt="KPW3 portrait dashboard frame" width="360">
 </p>
 
 ## Privacy model

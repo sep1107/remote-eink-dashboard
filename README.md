@@ -14,11 +14,15 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 
 ## Screenshots
 
-These frames use fixed Beijing sample weather and fictional AI quotas. They contain no device, account, or server data.
+Current production frames captured on 2026-07-22.
+
+### KO1 / Android 4.2 (landscape)
 
 <p align="center">
   <img src="docs/screenshots/landscape.png" alt="Landscape e-ink dashboard sample" width="720">
 </p>
+
+### KPW3 (portrait)
 
 <p align="center">
   <img src="docs/screenshots/portrait.png" alt="Portrait e-ink dashboard sample" width="360">

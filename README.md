@@ -12,6 +12,18 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 - Kindle KUAL extension with timed Wi-Fi wake, download, display, and suspend.
 - Scriptable widgets and a responsive calendar/weather page.
 
+## Screenshots
+
+These frames use fixed Beijing sample weather and fictional AI quotas. They contain no device, account, or server data.
+
+<p align="center">
+  <img src="docs/screenshots/landscape.png" alt="Landscape e-ink dashboard sample" width="720">
+</p>
+
+<p align="center">
+  <img src="docs/screenshots/portrait.png" alt="Portrait e-ink dashboard sample" width="360">
+</p>
+
 ## Privacy model
 
 - Device and viewer tokens are supplied through `.dashboard.env`; populated environment files are ignored by Git.

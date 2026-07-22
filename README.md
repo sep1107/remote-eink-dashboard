@@ -34,7 +34,7 @@ Current production frames captured on 2026-07-22.
 - Collectors submit only percentages, reset timestamps, plan badges, and formatted balances.
 - OAuth tokens and provider API keys stay on the collector host.
 - Frame and viewer routes should not be written to access logs because their tokens are path components.
-- Runtime state, fonts, build output, APKs, private keys, and personal deployment notes are excluded by `.gitignore`.
+- Runtime state, fonts, build output, APKs, private keys, and personal deployment notes are excluded by `.gitignore`. `docs/screenshots/` is the intentional exception: it contains user-authorized real device frames.
 
 Before publishing a fork, run your own secret scanner and review every staged file.
 

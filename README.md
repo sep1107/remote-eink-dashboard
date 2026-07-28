@@ -1,13 +1,13 @@
 # Remote E-Ink Dashboard
 
-A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-frequency grayscale PNG frames with a lunar calendar, weather, AI quota summaries, device battery, and optional server status.
+A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-frequency grayscale PNG frames with a lunar calendar, weather, AI quota summaries, device battery, and optional multi-server status.
 
 ## Features
 
 - Native layouts for 1072×1448 portrait, 1440×1080 landscape, and 720×1440 Android e-ink screens.
 - Open-Meteo weather, air quality, UV index, sunrise, sunset, and forecasts.
 - Token-protected frame, viewer, widget, and quota-ingest endpoints.
-- Optional collectors for Claude Code, Codex via Cockpit Tools, and the official DeepSeek balance API.
+- Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, and local or remote Linux server status.
 - Android 4.2+ client with orientation-specific offline caches.
 - Kindle KUAL extension with timed Wi-Fi wake, download, display, and suspend.
 - Scriptable widgets and a responsive calendar/weather page.
@@ -32,6 +32,7 @@ Current production frames captured on 2026-07-22.
 
 - Device and viewer tokens are supplied through `.dashboard.env`; populated environment files are ignored by Git.
 - Collectors submit only percentages, reset timestamps, plan badges, and formatted balances.
+- Remote server collectors submit CPU, load, memory, disk, and optional Docker summaries through a dedicated ingest token.
 - OAuth tokens and provider API keys stay on the collector host.
 - Frame and viewer routes should not be written to access logs because their tokens are path components.
 - Runtime state, fonts, build output, APKs, private keys, and personal deployment notes are excluded by `.gitignore`. `docs/screenshots/` is the intentional exception: it contains user-authorized real device frames.
@@ -60,6 +61,20 @@ The quota ingest endpoint is:
 ```text
 POST /v1/ingest/quota
 Authorization: Bearer YOUR_INGEST_TOKEN
+```
+
+To show more than one server on the responsive viewer, set `DASHBOARD_SERVERS_JSON`. The first entry uses the dashboard host's local `server-status.json`; every additional entry is written by the authenticated remote-status endpoint:
+
+```dotenv
+DASHBOARD_SERVERS_JSON=[{"id":"local","label":"Primary Server"},{"id":"server-2","label":"Secondary Server"}]
+DASHBOARD_SERVER_STATUS_TOKEN=REPLACE_WITH_ANOTHER_64_HEX_CHARACTERS
+```
+
+Install `php/collect_server_status.php` locally to collect the primary server. On each remote Linux server, install the same collector together with the example environment, service, and timer from `deploy/remote-eink-dashboard-status.*`. Use a dedicated unprivileged account, keep the populated environment file root-managed with read access limited to the collector group, and give each remote server a unique ID that also appears in `DASHBOARD_SERVERS_JSON`. The timer submits one small status summary per minute:
+
+```text
+POST /v1/ingest/server-status/SERVER_ID
+Authorization: Bearer YOUR_SERVER_STATUS_TOKEN
 ```
 
 ## Container deployment

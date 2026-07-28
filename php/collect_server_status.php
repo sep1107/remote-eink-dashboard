@@ -40,6 +40,32 @@ function docker_status(): array {
     return ['available' => true, 'containers' => $containers];
 }
 
+function push_status(array $payload): void {
+    $baseUrl = rtrim((string)getenv('DASHBOARD_STATUS_URL'), '/');
+    $serverId = trim((string)getenv('DASHBOARD_SERVER_ID'));
+    $token = trim((string)getenv('DASHBOARD_SERVER_STATUS_TOKEN'));
+    if ($baseUrl === '' && $serverId === '' && $token === '') return;
+    if ($baseUrl === '' || !preg_match('/^[a-z0-9_-]{1,32}$/', $serverId) || $token === '' || !function_exists('curl_init')) exit(1);
+    $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
+    if (!is_string($body)) exit(1);
+    $curl = curl_init($baseUrl . '/v1/ingest/server-status/' . rawurlencode($serverId));
+    curl_setopt_array($curl, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . $token,
+            'Content-Type: application/json',
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_CONNECTTIMEOUT => 10,
+        CURLOPT_TIMEOUT => 20,
+    ]);
+    $response = curl_exec($curl);
+    $status = curl_getinfo($curl, CURLINFO_RESPONSE_CODE);
+    curl_close($curl);
+    if (!is_string($response) || $status < 200 || $status >= 300) exit(1);
+}
+
 if (!is_dir($dataDir)) mkdir($dataDir, 0755, true);
 $cpu = cpu_totals();
 $previous = json_decode((string)@file_get_contents($cpuFile), true);
@@ -65,3 +91,4 @@ $payload = [
 file_put_contents($statusFile . '.tmp', json_encode($payload, JSON_UNESCAPED_UNICODE), LOCK_EX);
 rename($statusFile . '.tmp', $statusFile);
 chmod($statusFile, 0644);
+push_status($payload);

@@ -17,6 +17,16 @@ function config(): array {
     $devicesJson = trim($config['DASHBOARD_DEVICES_JSON'] ?? '[]', "'\"");
     $config['devices'] = json_decode($devicesJson, true);
     if (!is_array($config['devices']) || !$config['devices']) fail(500, 'Dashboard configuration is invalid');
+    $serversJson = trim($config['DASHBOARD_SERVERS_JSON'] ?? '[{"id":"local","label":"服务器"}]', "'\"");
+    $servers = json_decode($serversJson, true);
+    $config['servers'] = [];
+    foreach (is_array($servers) ? $servers : [] as $server) {
+        $id = is_array($server) ? trim((string)($server['id'] ?? '')) : '';
+        $label = is_array($server) ? trim((string)($server['label'] ?? '')) : '';
+        if (!preg_match('/^[a-z0-9_-]{1,32}$/', $id) || $label === '' || strlen($label) > 64) continue;
+        $config['servers'][] = ['id' => $id, 'label' => $label];
+    }
+    if (!$config['servers']) $config['servers'] = [['id' => 'local', 'label' => '服务器']];
     date_default_timezone_set($config['DASHBOARD_TIMEZONE'] ?? 'Asia/Shanghai');
     return $config;
 }
@@ -551,10 +561,29 @@ function iphone_metric_html(string $label, ?array $metric, int $maxAheadSeconds)
         . '</div>';
 }
 
-function server_status(): array {
-    $content = @file_get_contents(STATE_DIR . '/server-status.json');
-    $status = is_string($content) ? json_decode($content, true) : null;
-    return is_array($status) ? $status : [];
+function server_status_file(string $id): string {
+    return STATE_DIR . ($id === 'local' ? '/server-status.json' : '/server-status-' . $id . '.json');
+}
+
+function server_statuses(array $config): array {
+    $statuses = [];
+    foreach ($config['servers'] ?? [] as $server) {
+        if (!is_array($server)) continue;
+        $id = (string)($server['id'] ?? '');
+        $content = @file_get_contents(server_status_file($id));
+        $status = is_string($content) ? json_decode($content, true) : null;
+        $statuses[] = [
+            'id' => $id,
+            'label' => (string)($server['label'] ?? $id),
+            'status' => is_array($status) ? $status : [],
+        ];
+    }
+    return $statuses;
+}
+
+function server_status(array $config): array {
+    $statuses = server_statuses($config);
+    return is_array($statuses[0]['status'] ?? null) ? $statuses[0]['status'] : [];
 }
 
 function status_gib($bytes): string {
@@ -570,6 +599,51 @@ function status_percent($used, $total): int {
 function iphone_status_metric_html(string $label, ?float $percentage, string $value): string {
     $percentage = $percentage === null ? 0 : max(0, min(100, (int)round($percentage)));
     return '<div class="server-metric"><div><span>' . html_escape($label) . '</span><b>' . html_escape($value) . '</b></div><i><em style="width:' . $percentage . '%"></em></i></div>';
+}
+
+function iphone_server_html(string $label, array $server): string {
+    $serverUpdatedAt = is_string($server['updated_at'] ?? null) ? strtotime($server['updated_at']) : false;
+    $serverFresh = is_int($serverUpdatedAt) && $serverUpdatedAt > time() - 180;
+    $cpuPercent = is_numeric($server['cpu_percent'] ?? null) ? max(0, min(100, (float)$server['cpu_percent'])) : null;
+    $memory = is_array($server['memory'] ?? null) ? $server['memory'] : [];
+    $memoryUsed = is_numeric($memory['used_bytes'] ?? null) ? (float)$memory['used_bytes'] : null;
+    $memoryTotal = is_numeric($memory['total_bytes'] ?? null) ? (float)$memory['total_bytes'] : null;
+    $disk = is_array($server['disk'] ?? null) ? $server['disk'] : [];
+    $diskUsed = is_numeric($disk['used_bytes'] ?? null) ? (float)$disk['used_bytes'] : null;
+    $diskTotal = is_numeric($disk['total_bytes'] ?? null) ? (float)$disk['total_bytes'] : null;
+    $load = is_array($server['load'] ?? null) ? $server['load'] : [];
+    $docker = is_array($server['docker'] ?? null) ? $server['docker'] : [];
+    $containers = is_array($docker['containers'] ?? null) ? $docker['containers'] : [];
+
+    $containerHtml = '';
+    foreach (array_slice($containers, 0, 8) as $container) {
+        if (!is_array($container)) continue;
+        $name = is_string($container['name'] ?? null) ? $container['name'] : '未命名容器';
+        $status = is_string($container['status'] ?? null) ? $container['status'] : '--';
+        $running = !empty($container['running']);
+        $containerHtml .= '<li><i class="' . ($running ? 'running' : 'stopped') . '"></i><span>' . html_escape($name) . '</span><small>' . html_escape($status) . '</small></li>';
+    }
+    $dockerHtml = '';
+    if (!empty($docker['available'])) {
+        if ($containerHtml === '') $containerHtml = '<li><i class="stopped"></i><span>Docker 容器</span><small>暂无</small></li>';
+        $dockerHtml = '<div class="docker-head"><b>Docker 容器</b><span>' . count($containers) . ' 个</span></div><ul class="container-list">' . $containerHtml . '</ul>';
+    }
+
+    $loadText = is_numeric($load['one'] ?? null) && is_numeric($load['five'] ?? null) && is_numeric($load['fifteen'] ?? null)
+        ? number_format((float)$load['one'], 2) . ' / ' . number_format((float)$load['five'], 2) . ' / ' . number_format((float)$load['fifteen'], 2)
+        : '--';
+    $serverUpdatedText = $serverFresh ? '更新 ' . date('H:i', $serverUpdatedAt) : '等待采集';
+    $serverStateText = $serverFresh ? '正常' : '采集中';
+    $cpuValue = $cpuPercent === null ? '--' : round($cpuPercent) . '%';
+    $memoryValue = $memoryUsed === null || $memoryTotal === null ? '--' : status_gib($memoryUsed) . ' / ' . status_gib($memoryTotal);
+    $diskValue = $diskUsed === null || $diskTotal === null ? '--' : status_gib($diskUsed) . ' / ' . status_gib($diskTotal);
+    return '<section class="section server"><div class="section-head"><h2>' . html_escape($label) . '</h2><span class="status-pill ' . ($serverFresh ? 'healthy' : 'waiting') . '"><i></i>' . $serverStateText . '</span></div>'
+        . '<div class="server-meta"><span>最近采集：' . html_escape($serverUpdatedText) . '</span><span>负载：' . html_escape($loadText) . '</span></div>'
+        . '<div class="server-metrics">'
+        . iphone_status_metric_html('CPU', $cpuPercent, $cpuValue)
+        . iphone_status_metric_html('内存', $memoryUsed === null || $memoryTotal === null ? null : status_percent($memoryUsed, $memoryTotal), $memoryValue)
+        . iphone_status_metric_html('磁盘', $diskUsed === null || $diskTotal === null ? null : status_percent($diskUsed, $diskTotal), $diskValue)
+        . '</div>' . $dockerHtml . '</section>';
 }
 
 function widget_quota_metric(?array $metric, int $maxAheadSeconds): array {
@@ -605,7 +679,7 @@ function widget_payload(array $device, array $config): array {
         ];
     }
 
-    $server = server_status();
+    $server = server_status($config);
     $serverUpdatedAt = is_string($server['updated_at'] ?? null) ? strtotime($server['updated_at']) : false;
     $serverFresh = is_int($serverUpdatedAt) && $serverUpdatedAt > time() - 180;
     $cpuPercent = is_numeric($server['cpu_percent'] ?? null) ? max(0, min(100, (int)round((float)$server['cpu_percent']))) : null;
@@ -825,19 +899,6 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     $city = $weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京';
     $battery = $state['device_status'][$device['id']]['battery'] ?? null;
     $batteryText = is_numeric($battery) ? max(0, min(100, (int)$battery)) . '%' : '—';
-    $server = server_status();
-    $serverUpdatedAt = is_string($server['updated_at'] ?? null) ? strtotime($server['updated_at']) : false;
-    $serverFresh = is_int($serverUpdatedAt) && $serverUpdatedAt > time() - 180;
-    $cpuPercent = is_numeric($server['cpu_percent'] ?? null) ? max(0, min(100, (float)$server['cpu_percent'])) : null;
-    $memory = is_array($server['memory'] ?? null) ? $server['memory'] : [];
-    $memoryUsed = is_numeric($memory['used_bytes'] ?? null) ? (float)$memory['used_bytes'] : null;
-    $memoryTotal = is_numeric($memory['total_bytes'] ?? null) ? (float)$memory['total_bytes'] : null;
-    $disk = is_array($server['disk'] ?? null) ? $server['disk'] : [];
-    $diskUsed = is_numeric($disk['used_bytes'] ?? null) ? (float)$disk['used_bytes'] : null;
-    $diskTotal = is_numeric($disk['total_bytes'] ?? null) ? (float)$disk['total_bytes'] : null;
-    $load = is_array($server['load'] ?? null) ? $server['load'] : [];
-    $docker = is_array($server['docker'] ?? null) ? $server['docker'] : [];
-    $containers = is_array($docker['containers'] ?? null) ? $docker['containers'] : [];
 
     $forecastHtml = '';
     foreach ([1 => '明天', 2 => '后天'] as $index => $caption) {
@@ -888,30 +949,10 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     if ($deepseekHtml === '') $deepseekHtml = '<article class="ai-account deepseek empty"><b>DeepSeek</b><span>暂未接入</span></article>';
     if ($codexHtml === '') $codexHtml = '<article class="ai-account codex empty"><b>Codex</b><span>暂未接入</span></article>';
 
-    $containerHtml = '';
-    foreach (array_slice($containers, 0, 8) as $container) {
-        if (!is_array($container)) continue;
-        $name = is_string($container['name'] ?? null) ? $container['name'] : '未命名容器';
-        $status = is_string($container['status'] ?? null) ? $container['status'] : '--';
-        $running = !empty($container['running']);
-        $containerHtml .= '<li><i class="' . ($running ? 'running' : 'stopped') . '"></i><span>' . html_escape($name) . '</span><small>' . html_escape($status) . '</small></li>';
+    $serverHtml = '';
+    foreach (server_statuses($config) as $serverEntry) {
+        $serverHtml .= iphone_server_html((string)$serverEntry['label'], (array)$serverEntry['status']);
     }
-    if ($containerHtml === '') $containerHtml = '<li><i class="stopped"></i><span>Docker 状态</span><small>等待采集</small></li>';
-    $loadText = is_numeric($load['one'] ?? null) && is_numeric($load['five'] ?? null) && is_numeric($load['fifteen'] ?? null)
-        ? number_format((float)$load['one'], 2) . ' / ' . number_format((float)$load['five'], 2) . ' / ' . number_format((float)$load['fifteen'], 2)
-        : '--';
-    $serverUpdatedText = $serverFresh ? '更新 ' . date('H:i', $serverUpdatedAt) : '等待采集';
-    $serverStateText = $serverFresh ? '正常' : '采集中';
-    $cpuValue = $cpuPercent === null ? '--' : round($cpuPercent) . '%';
-    $memoryValue = $memoryUsed === null || $memoryTotal === null ? '--' : status_gib($memoryUsed) . ' / ' . status_gib($memoryTotal);
-    $diskValue = $diskUsed === null || $diskTotal === null ? '--' : status_gib($diskUsed) . ' / ' . status_gib($diskTotal);
-    $serverHtml = '<section class="section server"><div class="section-head"><h2>服务器状态</h2><span class="status-pill ' . ($serverFresh ? 'healthy' : 'waiting') . '"><i></i>' . $serverStateText . '</span></div>'
-        . '<div class="server-meta"><span>最近采集：' . html_escape($serverUpdatedText) . '</span><span>负载：' . html_escape($loadText) . '</span></div>'
-        . '<div class="server-metrics">'
-        . iphone_status_metric_html('CPU', $cpuPercent, $cpuValue)
-        . iphone_status_metric_html('内存', $memoryUsed === null || $memoryTotal === null ? null : status_percent($memoryUsed, $memoryTotal), $memoryValue)
-        . iphone_status_metric_html('磁盘', $diskUsed === null || $diskTotal === null ? null : status_percent($diskUsed, $diskTotal), $diskValue)
-        . '</div><div class="docker-head"><b>Docker 容器</b><span>' . (!empty($docker['available']) ? count($containers) . ' 个' : '不可用') . '</span></div><ul class="container-list">' . $containerHtml . '</ul></section>';
 
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: no-store, max-age=0');
@@ -1509,7 +1550,9 @@ function render_frame(array $device, array $state, array $config): void {
 }
 
 function render_viewer(array $device, string $id, string $token, array $config): void {
-    if (($device['id'] ?? '') === 'iphone') render_iphone_viewer($device, $id, $token, $config);
+    if (($device['layout'] ?? '') === 'responsive' || strpos((string)($device['id'] ?? ''), 'iphone') === 0) {
+        render_iphone_viewer($device, $id, $token, $config);
+    }
     $framePath = '/frame/' . rawurlencode($id) . '/' . rawurlencode($token) . '.png';
     $refreshMilliseconds = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 5)) * 60000;
     header('Content-Type: text/html; charset=utf-8');
@@ -1556,12 +1599,79 @@ function ingest_quota(array $config): void {
     json_response(['ok' => true]);
 }
 
+function clean_status_number($value, float $minimum, ?float $maximum = null): ?float {
+    if (!is_numeric($value)) return null;
+    $number = (float)$value;
+    if ($number < $minimum || ($maximum !== null && $number > $maximum)) return null;
+    return $number;
+}
+
+function clean_server_status(array $payload): ?array {
+    $cpu = $payload['cpu_percent'] ?? null;
+    $cpuPercent = $cpu === null ? null : clean_status_number($cpu, 0, 100);
+    if ($cpu !== null && $cpuPercent === null) return null;
+
+    $load = is_array($payload['load'] ?? null) ? $payload['load'] : [];
+    $loadOne = clean_status_number($load['one'] ?? null, 0);
+    $loadFive = clean_status_number($load['five'] ?? null, 0);
+    $loadFifteen = clean_status_number($load['fifteen'] ?? null, 0);
+    if ($loadOne === null || $loadFive === null || $loadFifteen === null) return null;
+
+    $memory = is_array($payload['memory'] ?? null) ? $payload['memory'] : [];
+    $memoryTotal = clean_status_number($memory['total_bytes'] ?? null, 1);
+    $memoryUsed = clean_status_number($memory['used_bytes'] ?? null, 0);
+    $disk = is_array($payload['disk'] ?? null) ? $payload['disk'] : [];
+    $diskTotal = clean_status_number($disk['total_bytes'] ?? null, 1);
+    $diskUsed = clean_status_number($disk['used_bytes'] ?? null, 0);
+    if ($memoryTotal === null || $memoryUsed === null || $memoryUsed > $memoryTotal || $diskTotal === null || $diskUsed === null || $diskUsed > $diskTotal) return null;
+
+    $docker = is_array($payload['docker'] ?? null) ? $payload['docker'] : [];
+    $containers = [];
+    foreach (array_slice(is_array($docker['containers'] ?? null) ? $docker['containers'] : [], 0, 16) as $container) {
+        if (!is_array($container)) continue;
+        $name = trim((string)($container['name'] ?? ''));
+        $status = trim((string)($container['status'] ?? ''));
+        if ($name === '' || strlen($name) > 64 || strlen($status) > 96) continue;
+        $containers[] = ['name' => $name, 'status' => $status, 'running' => !empty($container['running'])];
+    }
+
+    return [
+        'updated_at' => date(DATE_ATOM),
+        'cpu_percent' => $cpuPercent,
+        'load' => ['one' => $loadOne, 'five' => $loadFive, 'fifteen' => $loadFifteen],
+        'memory' => ['total_bytes' => $memoryTotal, 'used_bytes' => $memoryUsed],
+        'disk' => ['total_bytes' => $diskTotal, 'used_bytes' => $diskUsed],
+        'docker' => ['available' => !empty($docker['available']), 'containers' => $containers],
+    ];
+}
+
+function ingest_server_status(array $config, string $serverId): void {
+    $token = (string)($config['DASHBOARD_SERVER_STATUS_TOKEN'] ?? '');
+    if ($token === '') fail(404);
+    $authorization = $_SERVER['HTTP_AUTHORIZATION'] ?? ($_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+    if (!hash_equals('Bearer ' . $token, $authorization)) fail(401);
+    $allowedIds = array_column($config['servers'] ?? [], 'id');
+    if (!in_array($serverId, $allowedIds, true) || $serverId === 'local') fail(404);
+    $body = file_get_contents('php://input');
+    if (!is_string($body) || strlen($body) > 65536) json_response(['error' => 'invalid payload'], 400);
+    $payload = json_decode($body, true);
+    $status = is_array($payload) ? clean_server_status($payload) : null;
+    if ($status === null) json_response(['error' => 'invalid server status'], 400);
+    if (!is_dir(STATE_DIR) && !mkdir(STATE_DIR, 0700, true)) fail(500);
+    $statusFile = server_status_file($serverId);
+    $temporary = $statusFile . '.tmp';
+    if (file_put_contents($temporary, json_encode($status, JSON_UNESCAPED_UNICODE), LOCK_EX) === false || !rename($temporary, $statusFile)) fail(500);
+    chmod($statusFile, 0644);
+    json_response(['ok' => true]);
+}
+
 $config = config();
 $route = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 if ($route === '/') render_public_calendar_weather_viewer($config);
 if ($route === '/calendar-weather.json') render_public_calendar_weather_payload($config);
 if ($route === '/health') json_response(['ok' => true]);
 if ($route === '/v1/ingest/quota' && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') ingest_quota($config);
+if (preg_match('#^/v1/ingest/server-status/([a-z0-9_-]+)$#', $route, $matches) && ($_SERVER['REQUEST_METHOD'] ?? '') === 'POST') ingest_server_status($config, $matches[1]);
 if (preg_match('#^/widget/([a-z0-9_-]+)/([a-f0-9]+)\\.json$#', $route, $matches)) {
     $device = device($config, $matches[1]);
     if (!$device || !hash_equals((string)($device['token'] ?? ''), $matches[2])) fail(404);

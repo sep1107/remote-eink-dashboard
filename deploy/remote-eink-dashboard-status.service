@@ -1,0 +1,20 @@
+[Unit]
+Description=Push server status to Remote E-ink Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=remote-eink-status
+Group=remote-eink-status
+EnvironmentFile=/etc/remote-eink-dashboard/status.env
+ExecStart=/usr/bin/php /usr/local/sbin/eink-dashboard-status.php
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/remote-eink-dashboard
+
+[Install]
+WantedBy=multi-user.target

@@ -238,7 +238,7 @@ function public_weather_for_city(array $config, string $city): array {
         $cached = is_array($state['public_weather'][$city] ?? null) ? $state['public_weather'][$city] : [];
         $weather = is_array($cached['weather'] ?? null) ? $cached['weather'] : [];
         $forecast = is_array($weather['forecast'] ?? null) ? $weather['forecast'] : [];
-        $fresh = time() - (int)($cached['updated_at'] ?? 0) < 1800
+        $fresh = time() - (int)($cached['updated_at'] ?? 0) < 900
             && ($weather['source_city'] ?? '') === $city
             && ($weather['location_key'] ?? '') === $city
             && count($forecast) >= 7
@@ -797,7 +797,7 @@ function public_calendar_weather_payload(array $config): array {
     $now = time();
     return [
         'generated_at' => date(DATE_ATOM, $now),
-        'refresh_minutes' => 30,
+        'refresh_minutes' => 15,
         'calendar' => month_calendar_payload($now),
         'weather' => [
             'city' => (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海'),
@@ -982,7 +982,7 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     $margin = $p(38); $right = $width - $margin; $top = $p(105); $bottom = $p(475); $split = $p(815);
     $battery = $state['device_status'][$device['id']]['battery'] ?? null;
     $batteryText = is_numeric($battery) ? max(0, min(100, (int)$battery)) . '%' : '--';
-    $refresh = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 5));
+    $refresh = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 15));
     draw_text($image, $p(21), $margin, $p(61), '更新于：' . date('Y年m月d日 H:i', $now), $grey);
     draw_text($image, $p(19), $p(500), $p(61), '刷新：' . $refresh . '分钟', $grey);
     draw_text($image, $p(19), $split + $p(15), $p(61), '城市：' . ($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海'), $grey);
@@ -1327,7 +1327,7 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     $margin = $p(26); $right = $width - $margin;
     $battery = $state['device_status'][$device['id']]['battery'] ?? null;
     $batteryText = is_numeric($battery) ? max(0, min(100, (int)$battery)) . '%' : '--';
-    $refresh = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 5));
+    $refresh = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 15));
     draw_text($image, $p(17), $margin, $p(47), '更新于：' . date('Y年m月d日 H:i', $now), $grey);
     draw_text($image, $p(15), (int)($width * .59), $p(47), '刷新：' . $refresh . '分钟', $grey, 'center');
     draw_text($image, $p(15), $right, $p(47), '电量：' . $batteryText, $grey, 'right');
@@ -1554,7 +1554,7 @@ function render_viewer(array $device, string $id, string $token, array $config):
         render_iphone_viewer($device, $id, $token, $config);
     }
     $framePath = '/frame/' . rawurlencode($id) . '/' . rawurlencode($token) . '.png';
-    $refreshMilliseconds = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 5)) * 60000;
+    $refreshMilliseconds = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 15)) * 60000;
     header('Content-Type: text/html; charset=utf-8');
     header('Cache-Control: no-store, max-age=0');
     echo '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,height=device-height,initial-scale=1,maximum-scale=1,user-scalable=no">';

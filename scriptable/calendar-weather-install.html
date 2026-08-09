@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>安装日历天气组件 · v27</title>
+<title>安装日历天气组件 · v28</title>
 <style>
   :root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#101725;color:#edf3ff}
   body{margin:0;padding:56px 22px;background:radial-gradient(circle at 90% 0,#284b78 0,transparent 25rem),#101725}
@@ -10,23 +10,23 @@
 </style>
 <main>
   <h1>日历天气组件</h1>
-  <div class="version">当前版本 v27 · 2026-08-09</div>
+  <div class="version">当前版本 v28 · 2026-08-09</div>
   <p>一份脚本同时适配三种桌面组件：</p>
   <ul class="sizes">
     <li>小号：年月日、星期和农历，去掉月历并放大显示。</li>
     <li>中号：年月日、星期、农历和完整月历。</li>
     <li>大号：当前天气、生活指标、日出日落和四日预报。</li>
   </ul>
-  <p class="note">安装方法：复制脚本，在 Scriptable 新建脚本并粘贴，先运行一次；再添加桌面组件、选择该脚本和所需尺寸。大号组件参数可填北京、上海、北海、江门、盐城、泰安、临海或广州，留空默认北海。数据约每 30 分钟更新。</p>
-  <button id="copy">复制 v27 组件脚本</button>
-  <small id="status">v27 已恢复北海为公开页和组件默认城市。</small>
+  <p class="note">安装方法：复制脚本，在 Scriptable 新建脚本并粘贴，先运行一次；再添加桌面组件、选择该脚本和所需尺寸。大号组件参数可填北京、上海、北海、江门、盐城、泰安、临海或广州，留空默认北海。数据约每 15 分钟更新。</p>
+  <button id="copy">复制 v28 组件脚本</button>
+  <small id="status">v28 将公开天气缓存和组件刷新统一为每 15 分钟。</small>
   <a id="manual" class="manual" target="_blank" rel="noopener">自动复制仍失败？打开脚本文本</a>
 </main>
 <script>
   const button = document.querySelector("#copy");
   const status = document.querySelector("#status");
   const manual = document.querySelector("#manual");
-  const scriptUrl = "./calendar-weather-large.js?version=27";
+  const scriptUrl = "./calendar-weather-large.js?version=28";
   const scriptPromise = fetch(scriptUrl).then(r => r.ok ? r.text() : Promise.reject());
   manual.href = scriptUrl;
 
@@ -59,7 +59,7 @@
       const script = await scriptPromise;
       await copyScript(script);
       button.textContent = "已复制，去 Scriptable 粘贴";
-      status.textContent = "已复制 v27。新建脚本后粘贴并运行一次，再添加需要尺寸的组件。";
+      status.textContent = "已复制 v28。新建脚本后粘贴并运行一次，再添加需要尺寸的组件。";
     } catch (_) {
       status.textContent = "Safari 未允许自动复制。请点下面链接打开脚本，长按后全选复制。";
       manual.classList.add("show");

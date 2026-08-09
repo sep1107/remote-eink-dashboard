@@ -1,7 +1,7 @@
 <!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>更新墨水看板组件</title>
+<title>更新北海看板</title>
 <style>
   :root{color-scheme:dark;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#101725;color:#edf3ff}
   body{margin:0;padding:56px 22px;background:radial-gradient(circle at 90% 0,#284b78 0,transparent 25rem),#101725}
@@ -9,8 +9,8 @@
   h1{margin:0 0 12px;font-size:25px}p{color:#b6c4da;line-height:1.65}button{width:100%;margin:14px 0 12px;padding:15px;border:0;border-radius:15px;background:#4d90c7;color:#fff;font-size:17px;font-weight:700}small{display:block;color:#8292aa;line-height:1.55}
 </style>
 <main>
-  <h1>更新墨水看板组件</h1>
-  <p>点一次复制，然后回 Scriptable：关闭预览 → 打开组件编辑器 → 全选旧代码 → 粘贴 → 运行。</p>
+  <h1>更新北海看板</h1>
+  <p>点一次复制，然后回 Scriptable：关闭预览 → 打开「北海看板」编辑器 → 全选旧代码 → 粘贴 → 运行。</p>
   <button id="copy">复制最新版脚本</button>
   <small id="status">脚本不会读取或导出你的私有地址；原先保存的地址会继续保留。</small>
 </main>
@@ -19,7 +19,7 @@
   const status = document.querySelector("#status");
   button.onclick = async () => {
     try {
-      const script = await fetch("./dashboard-widget.js?version=1").then(r => r.ok ? r.text() : Promise.reject());
+      const script = await fetch("/scriptable/beihai-dashboard.js?version=20260718b").then(r => r.ok ? r.text() : Promise.reject());
       await navigator.clipboard.writeText(script);
       button.textContent = "已复制，回 Scriptable 粘贴";
       status.textContent = "粘贴后点运行，会看到「设置透明白字」。";

@@ -1353,22 +1353,23 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     draw_text($image, $p(16), $countdownLeft, $calendarY + $p(346), '距离春节：', $black);
     draw_text($image, $p(18), $countdownRight, $calendarY + $p(348), ($springFestivalDays === null ? '--' : $springFestivalDays) . '天', $black, 'right');
     imageline($image, $calendarDividerX, $calendarY + $p(54), $calendarDividerX, $calendarBottom - $p(22), $light);
-    $gridX = $calendarX + $p(302); $gridY = $calendarY + $p(48); $gridWidth = $calendarRight - $gridX - $p(18); $cellWidth = $gridWidth / 7;
-    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $p(23), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY - $p(3), $name, $grey, 'center');
     $firstWeekday = (int)date('N', mktime(0, 0, 0, $month, 1, $year)) - 1; $days = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
-    $calendarRows = (int)ceil(($firstWeekday + $days) / 7); $calendarRowGap = $calendarRows >= 6 ? 47 : 59;
+    $calendarRows = (int)ceil(($firstWeekday + $days) / 7);
+    $gridX = $calendarX + $p(302); $gridY = $calendarY + $p($calendarRows >= 6 ? 41 : 48); $gridWidth = $calendarRight - $gridX - $p(18); $cellWidth = $gridWidth / 7;
+    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $p(23), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY - $p(3), $name, $grey, 'center');
+    $calendarRowGap = $calendarRows >= 6 ? 53 : 59;
     for ($currentDay = 1; $currentDay <= $days; $currentDay++) {
         $index = $firstWeekday + $currentDay - 1; $row = intdiv($index, 7); $column = $index % 7;
         $cx = (int)($gridX + $column * $cellWidth + $cellWidth / 2); $cy = $gridY + $p(46 + $row * $calendarRowGap); $colour = $column > 4 ? $grey : $black;
         if ($currentDay === $day) {
             imagesetthickness($image, max(1, $p(2)));
-            imagerectangle($image, $cx - $p(30), $cy - $p(31), $cx + $p(30), $cy + $p(25), $black);
+            imagerectangle($image, $cx - $p(30), $cy - $p(31), $cx + $p(30), $cy + $p(29), $black);
             imagesetthickness($image, 1);
             $colour = $black;
         }
         draw_text($image, $p(21), $cx, $cy, (string)$currentDay, $colour, 'center');
         $lunarDay = lunar_info(mktime(12, 0, 0, $month, $currentDay, $year));
-        draw_text($image, $p(13), $cx, $cy + $p(20), $lunarDay['short'], $currentDay === $day ? $black : $grey, 'center');
+        draw_text($image, $p(12), $cx, $cy + $p(24), $lunarDay['short'], $currentDay === $day ? $black : $grey, 'center');
     }
 
     $weatherX = $weatherRect[0]; $weatherY = $weatherRect[1]; $weatherRight = $weatherRect[2];

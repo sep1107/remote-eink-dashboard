@@ -1008,10 +1008,10 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     draw_text($image, $p(19), $countdownRight, $top + $p(338), ($springFestivalDays === null ? '--' : $springFestivalDays) . '天', $black, 'right');
     $gridX = $calendarRect[0] + $p(250); $gridY = $top + $p(34); $gridWidth = $calendarRect[2] - $gridX - $p(16); $cellWidth = $gridWidth / 7;
     imageline($image, $calendarDividerX, $top + $p(72), $calendarDividerX, $bottom - $p(28), $light);
-    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $p(20), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY + $p(8), $name, $grey, 'center');
+    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $p(20), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY + $p(6), $name, $grey, 'center');
     $firstWeekday = (int)date('N', mktime(0, 0, 0, $month, 1, $year)) - 1; $days = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
     for ($currentDay = 1; $currentDay <= $days; $currentDay++) {
-        $index = $firstWeekday + $currentDay - 1; $row = intdiv($index, 7); $column = $index % 7; $cx = (int)($gridX + $column * $cellWidth + $cellWidth / 2); $cy = $gridY + $p(58 + $row * 51);
+        $index = $firstWeekday + $currentDay - 1; $row = intdiv($index, 7); $column = $index % 7; $cx = (int)($gridX + $column * $cellWidth + $cellWidth / 2); $cy = $gridY + $p(51 + $row * 51);
         $colour = $column > 4 ? $grey : $black;
         if ($currentDay === $day) {
             imagesetthickness($image, max(1, $p(2)));

@@ -1194,10 +1194,10 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
     $firstWeekday = (int)date('N', mktime(0, 0, 0, $month, 1, $year)) - 1; $days = (int)date('t', mktime(0, 0, 0, $month, 1, $year));
     $rowCount = intdiv($firstWeekday + $days - 1, 7) + 1; $rowSpacing = 55;
     $gridX = $p(243); $gridY = $calendarY + $p($rowCount <= 5 ? 20 : 13); $gridWidth = $right - $gridX - $p(8); $cellWidth = $gridWidth / 7;
-    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $f(11), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY + $p(9), $name, $grey, 'center');
+    foreach (['一', '二', '三', '四', '五', '六', '日'] as $column => $name) draw_text($image, $f(11), (int)($gridX + $column * $cellWidth + $cellWidth / 2), $gridY + $p(12), $name, $grey, 'center');
     for ($currentDay = 1; $currentDay <= $days; $currentDay++) {
         $index = $firstWeekday + $currentDay - 1; $row = intdiv($index, 7); $column = $index % 7;
-        $cx = (int)($gridX + $column * $cellWidth + $cellWidth / 2); $cy = $gridY + $p(50 + $row * $rowSpacing); $colour = $column > 4 ? $grey : $black;
+        $cx = (int)($gridX + $column * $cellWidth + $cellWidth / 2); $cy = $gridY + $p(45 + $row * $rowSpacing); $colour = $column > 4 ? $grey : $black;
         if ($currentDay === $day) {
             imagesetthickness($image, max(1, $p(2)));
             imagerectangle($image, $cx - $p(24), $cy - $p(26), $cx + $p(24), $cy + $p(27), $black);

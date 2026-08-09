@@ -1033,15 +1033,29 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     draw_weather_icon($image, $currentWeatherCenter - $p(70), $top + $p(56), $p(50), $weather['code'] ?? null, $black, $grey, $white);
     $weatherIconCenter = $currentWeatherCenter - $p(70);
     $weatherCenter = $currentWeatherCenter + $p(38);
-    draw_text($image, $p(24), $weatherIconCenter, $top + $p(132), weather_label($weather['code'] ?? null), $black, 'center');
+    draw_text($image, $p(22), $weatherIconCenter, $top + $p(132), weather_label($weather['code'] ?? null), $black, 'center');
     draw_text($image, $p(56), $weatherCenter, $top + $p(94), $currentTemperature . '°', $black, 'center');
     draw_text($image, $p(18), $weatherCenter, $top + $p(132), (is_numeric($weather['low'] ?? null) ? round((float)$weather['low']) : '--') . '° / ' . (is_numeric($weather['high'] ?? null) ? round((float)$weather['high']) : '--') . '°', $grey, 'center');
-    draw_text($image, $p(17), $currentWeatherCenter, $top + $p(165), '湿度 ' . ($weather['humidity'] ?? '--') . '%', $grey, 'center');
     $aqi = is_numeric($weather['aqi'] ?? null) ? (int)round((float)$weather['aqi']) : null;
-    draw_text($image, $p(17), $currentWeatherCenter, $top + $p(193), '空气 ' . air_quality_label($aqi) . '  AQI ' . ($aqi ?? '--'), $grey, 'center');
     $currentWindLevel = wind_level($weather['wind'] ?? null);
-    draw_text($image, $p(17), $currentWeatherCenter, $top + $p(221), '风力 ' . ($currentWindLevel ?? '--') . '级', $grey, 'center');
-    draw_text($image, $p(17), $currentWeatherCenter, $top + $p(249), '紫外线 ' . uv_level_label($weather['uv_index'] ?? null), $grey, 'center');
+    $humidity = ($weather['humidity'] ?? '--') . '%'; $air = air_quality_label($aqi); $wind = ($currentWindLevel ?? '--') . '级'; $uv = uv_level_label($weather['uv_index'] ?? null);
+    $currentWeatherDetails = [
+        ['湿度', $humidity, '湿度 ' . $humidity, 165],
+        ['空气', $air, '空气 ' . $air . '  AQI ' . ($aqi ?? '--'), 193],
+        ['风力', $wind, '风力 ' . $wind, 221],
+        ['紫外线', $uv, '紫外线 ' . $uv, 249],
+    ];
+    $detailFontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
+    $detailLabelFontSize = max(1, (int)round($p(17) * $detailFontScale));
+    foreach ($currentWeatherDetails as [$label, $value, $previousText, $baseline]) {
+        $previousBox = imagettfbbox($detailLabelFontSize, 0, FONT_FILE, $previousText);
+        $previousLeft = min($previousBox[0], $previousBox[2], $previousBox[4], $previousBox[6]); $previousRight = max($previousBox[0], $previousBox[2], $previousBox[4], $previousBox[6]);
+        $labelX = $currentWeatherCenter - (int)round(($previousLeft + $previousRight) / 2);
+        $labelBox = imagettfbbox($detailLabelFontSize, 0, FONT_FILE, $label . ' ');
+        $labelWidth = max($labelBox[0], $labelBox[2], $labelBox[4], $labelBox[6]) - min($labelBox[0], $labelBox[2], $labelBox[4], $labelBox[6]);
+        draw_text($image, $p(17), $labelX, $top + $p($baseline), $label . ' ', $grey);
+        draw_text($image, $p(18), $labelX + $labelWidth, $top + $p($baseline), $value, $black);
+    }
     $sunLineY = $top + $p(283);
     $sunriseX = $weatherRect[0] + $p(22);
     draw_sun_icon($image, $sunriseX, $sunLineY - $p(5), $p(12), $black);

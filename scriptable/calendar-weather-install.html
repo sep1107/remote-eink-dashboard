@@ -26,7 +26,7 @@
   const button = document.querySelector("#copy");
   const status = document.querySelector("#status");
   const manual = document.querySelector("#manual");
-  const scriptUrl = "./calendar-weather-large.js?version=28";
+  const scriptUrl = "/scriptable/calendar-weather-large.js?version=28";
   const scriptPromise = fetch(scriptUrl).then(r => r.ok ? r.text() : Promise.reject());
   manual.href = scriptUrl;
 

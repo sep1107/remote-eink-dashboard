@@ -92,7 +92,7 @@ It listens on `127.0.0.1:8486` by default. Put HTTPS in front of it before confi
 
 - `android/`: open with Android Studio and build with JDK 11+. Long-press the image to set portrait and landscape frame URLs.
 - `kindle/kual/`: copy to `extensions/remote-eink-dashboard/`, create `eink-dashboard.conf`, then start it from KUAL.
-- `scriptable/`: the hosted public widget targets `ai.hpqq.fun`; self-hosted deployments should replace that domain before installing the widgets.
+- `scriptable/`: the hosted public widget targets `ai.hpqq.fun` and installs from `https://ai.hpqq.fun/install`; self-hosted deployments should replace that domain before installing the widgets.
 - `collector/`: configure credentials as environment variables on the collector host; never place them in this repository.
 
 ## Tests

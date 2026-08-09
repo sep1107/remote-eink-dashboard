@@ -1034,8 +1034,8 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     $weatherIconCenter = $currentWeatherCenter - $p(70);
     $weatherCenter = $currentWeatherCenter + $p(38);
     draw_text($image, $p(19), $weatherIconCenter, $top + $p(132), weather_label($weather['code'] ?? null), $black, 'center');
-    draw_text($image, $p(56), $weatherCenter, $top + $p(94), $currentTemperature . '°', $black, 'center');
-    draw_text($image, $p(18), $weatherCenter, $top + $p(132), (is_numeric($weather['low'] ?? null) ? round((float)$weather['low']) : '--') . '° / ' . (is_numeric($weather['high'] ?? null) ? round((float)$weather['high']) : '--') . '°', $grey, 'center');
+    draw_text($image, $p(56), $weatherCenter + $p(30), $top + $p(94), $currentTemperature . '°', $black, 'center');
+    draw_text($image, $p(18), $weatherCenter + $p(30), $top + $p(132), (is_numeric($weather['low'] ?? null) ? round((float)$weather['low']) : '--') . '° / ' . (is_numeric($weather['high'] ?? null) ? round((float)$weather['high']) : '--') . '°', $grey, 'center');
     $aqi = is_numeric($weather['aqi'] ?? null) ? (int)round((float)$weather['aqi']) : null;
     $currentWindLevel = wind_level($weather['wind'] ?? null);
     $humidity = ($weather['humidity'] ?? '--') . '%'; $air = air_quality_label($aqi); $wind = ($currentWindLevel ?? '--') . '级'; $uv = uv_level_label($weather['uv_index'] ?? null);

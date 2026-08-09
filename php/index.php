@@ -1383,7 +1383,7 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     $detailLabelX = $weatherX + $p(349);
     $detailValueX = $weatherRight - $p(20);
     draw_weather_icon($image, $weatherNowCenter, $weatherY + $p(88), $p(52), $weather['code'] ?? null, $black, $grey, $white);
-    draw_text($image, $p(18), $weatherNowCenter, $weatherY + $p(155), weather_label($weather['code'] ?? null), $black, 'center');
+    draw_text($image, $p(18), $weatherNowCenter, $weatherY + $p(160), weather_label($weather['code'] ?? null), $black, 'center');
     draw_text($image, $p(50), $temperatureCenter, $weatherY + $p(106), $currentTemperature . '°', $black, 'center');
     draw_text($image, $p(21), $temperatureCenter, $weatherY + $p(145), (is_numeric($weather['low'] ?? null) ? round((float)$weather['low']) : '--') . '° / ' . (is_numeric($weather['high'] ?? null) ? round((float)$weather['high']) : '--') . '°', $grey, 'center');
     $aqi = is_numeric($weather['aqi'] ?? null) ? (int)round((float)$weather['aqi']) : null;
@@ -1396,7 +1396,7 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     ];
     foreach ($currentDetails as $detailIndex => [$label, $value]) {
         $detailBaseline = $weatherY + $p(62 + $detailIndex * 41);
-        draw_text($image, $p(17), $detailLabelX, $detailBaseline - $p(3), $label, $grey);
+        draw_text($image, $p(17), $detailLabelX - $p(5), $detailBaseline - $p(3), $label, $grey);
         draw_text($image, $p(20), $detailValueX, $detailBaseline, $value, $black, 'right');
     }
     draw_sun_icon($image, $weatherX + $p(38), $weatherY + $p(201), $p(13), $black);

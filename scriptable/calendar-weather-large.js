@@ -1,13 +1,13 @@
-// Public calendar and weather widget for Scriptable. Version 26.
+// Public calendar and weather widget for Scriptable. Version 27.
 // Designed for small date, medium calendar, and large weather widgets on iPhone 13 mini and iPhone 15.
 
 const API = "https://dashboard.example.com/calendar-weather.json";
 const OPEN_URL = "https://dashboard.example.com";
 const REFRESH_MINUTES = 30;
-const CITIES = ["北京", "上海", "广州", "深圳", "成都", "杭州", "武汉", "西安"];
+const CITIES = ["北京", "上海", "北海", "江门", "盐城", "泰安", "临海", "广州"];
 const L = {
   title: "\u65e5\u5386\u5929\u6c14",
-  city: "\u5317\u4eac",
+  city: "\u5317\u6d77",
   humidity: "\u6e7f\u5ea6",
   wind: "\u98ce\u529b",
   air: "\u7a7a\u6c14",
@@ -46,7 +46,7 @@ function value(input, fallback) {
 
 function selectedCity() {
   const city = String(args.widgetParameter || "").trim().replace(/市$/, "");
-  return CITIES.includes(city) ? city : "北京";
+  return CITIES.includes(city) ? city : "北海";
 }
 
 function updateLabel(timestamp) {

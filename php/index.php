@@ -208,23 +208,23 @@ function state_with_weather(array $config): array {
 }
 
 function public_weather_city(array $config): string {
-    $allowed = ['北京', '上海', '广州', '深圳', '成都', '杭州', '武汉', '西安'];
+    $allowed = ['北京', '上海', '北海', '江门', '盐城', '泰安', '临海', '广州'];
     $requested = normalize_city_name((string)($_GET['city'] ?? ''));
     if (in_array($requested, $allowed, true)) return $requested;
     $configured = normalize_city_name(weather_city_query($config));
-    return in_array($configured, $allowed, true) ? $configured : '北京';
+    return in_array($configured, $allowed, true) ? $configured : '北海';
 }
 
 function public_weather_for_city(array $config, string $city): array {
     $locations = [
         '北京' => [39.9042, 116.4074],
         '上海' => [31.2304, 121.4737],
+        '北海' => [21.4733, 109.1202],
+        '江门' => [22.5787, 113.0819],
+        '盐城' => [33.3495, 120.1616],
+        '泰安' => [36.2003, 117.0876],
+        '临海' => [28.8583, 121.1444],
         '广州' => [23.1291, 113.2644],
-        '深圳' => [22.5431, 114.0579],
-        '成都' => [30.5728, 104.0668],
-        '杭州' => [30.2741, 120.1551],
-        '武汉' => [30.5928, 114.3055],
-        '西安' => [34.3416, 108.9398],
     ];
     [$latitude, $longitude] = $locations[$city];
     $config['DASHBOARD_CITY'] = $city;
@@ -714,7 +714,7 @@ function widget_payload(array $device, array $config): array {
         'generated_at' => date(DATE_ATOM),
         'refresh_minutes' => max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 15)),
         'weather' => [
-            'city' => (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京'),
+            'city' => (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海'),
             'emoji' => iphone_weather_emoji($weather['code'] ?? null),
             'condition' => weather_label($weather['code'] ?? null),
             'temperature' => is_numeric($weather['temperature'] ?? null) ? round((float)$weather['temperature']) : null,
@@ -800,7 +800,7 @@ function public_calendar_weather_payload(array $config): array {
         'refresh_minutes' => 30,
         'calendar' => month_calendar_payload($now),
         'weather' => [
-            'city' => (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京'),
+            'city' => (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海'),
             'emoji' => iphone_weather_emoji($weather['code'] ?? null),
             'condition' => weather_label($weather['code'] ?? null),
             'temperature' => is_numeric($weather['temperature'] ?? null) ? round((float)$weather['temperature']) : null,
@@ -896,7 +896,7 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     $wind = wind_level($weather['wind'] ?? null);
     $aqi = is_numeric($weather['aqi'] ?? null) ? (int)round((float)$weather['aqi']) : null;
     $uvLevel = uv_level_label($weather['uv_index'] ?? null);
-    $city = $weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京';
+    $city = $weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海';
     $battery = $state['device_status'][$device['id']]['battery'] ?? null;
     $batteryText = is_numeric($battery) ? max(0, min(100, (int)$battery)) . '%' : '—';
 
@@ -985,7 +985,7 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     $refresh = max(1, (int)($config['DASHBOARD_REFRESH_MINUTES'] ?? 5));
     draw_text($image, $p(21), $margin, $p(61), '更新于：' . date('Y年m月d日 H:i', $now), $grey);
     draw_text($image, $p(19), $p(500), $p(61), '刷新：' . $refresh . '分钟', $grey);
-    draw_text($image, $p(19), $split + $p(15), $p(61), '城市：' . ($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京'), $grey);
+    draw_text($image, $p(19), $split + $p(15), $p(61), '城市：' . ($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海'), $grey);
     draw_text($image, $p(19), $right, $p(61), '电量：' . $batteryText, $grey, 'right');
     imageline($image, $margin, $p(82), $right, $p(82), $black);
 
@@ -1214,7 +1214,7 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
     $aqi = is_numeric($weather['aqi'] ?? null) ? (int)round((float)$weather['aqi']) : null;
     $windLevel = wind_level($weather['wind'] ?? null);
     $weatherIconCenterX = $cityX + $p(24); $temperatureCenterX = $temperatureX + $p(31);
-    $cityName = (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京');
+    $cityName = (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海');
     $cityNameBox = imagettfbbox($f(15), 0, FONT_FILE, $cityName);
     $cityNameWidth = max($cityNameBox[0], $cityNameBox[2], $cityNameBox[4], $cityNameBox[6]) - min($cityNameBox[0], $cityNameBox[2], $cityNameBox[4], $cityNameBox[6]);
     $cityGroupCenterX = (int)round(($weatherIconCenterX + $temperatureCenterX) / 2); $cityGroupWidth = $p(13) + $p(8) + $cityNameWidth; $cityGroupLeft = $cityGroupCenterX - (int)round($cityGroupWidth / 2);
@@ -1373,7 +1373,7 @@ function render_portrait_frame(array $device, array $state, array $config, int $
 
     $weatherX = $weatherRect[0]; $weatherY = $weatherRect[1]; $weatherRight = $weatherRect[2];
     $currentTemperature = is_numeric($weather['temperature'] ?? null) ? round((float)$weather['temperature']) : '--';
-    $cityName = (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北京');
+    $cityName = (string)($weather['city'] ?? $config['DASHBOARD_CITY_LABEL'] ?? '北海');
     draw_location_pin($image, $weatherX + $p(36), $weatherY + $p(25), $p(16), $black, $white);
     draw_text($image, $p(18), $weatherX + $p(58), $weatherY + $p(38), $cityName, $black);
 

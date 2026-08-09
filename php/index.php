@@ -1220,7 +1220,7 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
     $cityGroupCenterX = (int)round(($weatherIconCenterX + $temperatureCenterX) / 2); $cityGroupWidth = $p(13) + $p(8) + $cityNameWidth; $cityGroupLeft = $cityGroupCenterX - (int)round($cityGroupWidth / 2);
     draw_location_pin($image, $cityGroupLeft + $p(7), $weatherY + $p(21), $p(13), $black, $white);
     draw_text($image, $f(15), $cityGroupLeft + $p(20), $weatherY + $p(32), $cityName, $black);
-    draw_weather_icon($image, $weatherIconCenterX, $weatherY + $p(92), $p(40), $weather['code'] ?? null, $black, $grey, $white);
+    draw_weather_icon($image, $weatherIconCenterX, $weatherY + $p(77), $p(40), $weather['code'] ?? null, $black, $grey, $white);
     draw_text($image, $f(16), $weatherIconCenterX, $weatherY + $p(145), weather_label($weather['code'] ?? null), $black, 'center');
     draw_text($image, $f(47), $temperatureCenterX, $weatherY + $p(109), $currentTemperature . '°', $black, 'center');
     $todayLow = is_numeric($weather['low'] ?? null) ? round((float)$weather['low']) : '--'; $todayHigh = is_numeric($weather['high'] ?? null) ? round((float)$weather['high']) : '--';
@@ -1228,13 +1228,13 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
     imageline($image, $weatherX + $p(207), $weatherY + $p(48), $weatherX + $p(207), $weatherY + $p(153), $grey);
     $detailValueX = $weatherRight - $p(18);
     draw_text($image, $f(11), $detailX, $weatherY + $p(58), '空气：', $grey);
-    draw_text($image, $f(11), $detailValueX, $weatherY + $p(58), air_quality_label($aqi), $grey, 'right');
+    draw_text($image, $f(12), $detailValueX, $weatherY + $p(58), air_quality_label($aqi), $black, 'right');
     draw_text($image, $f(11), $detailX, $weatherY + $p(89), '湿度：', $grey);
-    draw_text($image, $f(11), $detailValueX, $weatherY + $p(89), ($weather['humidity'] ?? '--') . '%', $grey, 'right');
+    draw_text($image, $f(12), $detailValueX, $weatherY + $p(89), ($weather['humidity'] ?? '--') . '%', $black, 'right');
     draw_text($image, $f(11), $detailX, $weatherY + $p(120), '风力：', $grey);
-    draw_text($image, $f(11), $detailValueX, $weatherY + $p(120), ($windLevel ?? '--') . '级', $grey, 'right');
+    draw_text($image, $f(12), $detailValueX, $weatherY + $p(120), ($windLevel ?? '--') . '级', $black, 'right');
     draw_text($image, $f(11), $detailX, $weatherY + $p(151), '紫外线：', $grey);
-    draw_text($image, $f(11), $detailValueX, $weatherY + $p(151), uv_level_label($weather['uv_index'] ?? null), $grey, 'right');
+    draw_text($image, $f(12), $detailValueX, $weatherY + $p(151), uv_level_label($weather['uv_index'] ?? null), $black, 'right');
     $forecastTop = $weatherY + $p(199); $sunLineY = $forecastTop - $p(13);
     $sunriseLeftX = $dateCenter - (int)round($lunarWidth / 2);
     draw_sun_icon($image, $sunriseLeftX + $p(12), $sunLineY - $p(6), $p(15), $black);

@@ -369,6 +369,20 @@ function quota_accounts(array $state): array {
     return array_slice($accounts, 0, 5);
 }
 
+function quota_source_account(array $state, string $source): ?array {
+    $quota = is_array($state['quota'] ?? null) ? $state['quota'] : [];
+    $sources = is_array($quota['sources'] ?? null) ? $quota['sources'] : [];
+    $items = $sources[$source]['accounts'] ?? [];
+    if (!is_array($items)) return null;
+    foreach ($items as $item) {
+        if (is_array($item) && is_string($item['name'] ?? null) && is_string($item['summary'] ?? null)) {
+            $item['source'] = $source;
+            return $item;
+        }
+    }
+    return null;
+}
+
 function draw_text($image, int $size, int $x, int $baseline, string $value, int $colour, string $align = 'left'): void {
     $fontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
     $size = max(1, (int)round($size * $fontScale));
@@ -503,11 +517,11 @@ function draw_weather_icon($image, int $x, int $y, int $size, $code, int $black,
 }
 
 function draw_service_icon($image, string $source, int $x, int $y, int $black, int $white, int $sizeOffset = 0): void {
-    $files = ['claude' => 'claudecode.png', 'deepseek' => 'deepseek.png', 'codex' => 'openai.png'];
+    $files = ['claude' => 'claudecode.png', 'deepseek' => 'deepseek.png', 'codex' => 'openai.png', 'grok2api' => 'grok.png'];
     $path = ICON_DIR . '/' . ($files[$source] ?? $files['codex']);
     $icon = is_readable($path) ? @imagecreatefrompng($path) : false;
     if ($icon !== false) {
-        $sizes = ['claude' => 68, 'deepseek' => 60, 'codex' => 80];
+        $sizes = ['claude' => 68, 'deepseek' => 60, 'codex' => 80, 'grok2api' => 76];
         $size = max(1, ($sizes[$source] ?? 60) + $sizeOffset);
         imagecopyresampled($image, $icon, $x - (int)($size / 2), $y - (int)($size / 2), 0, 0, $size, $size, imagesx($icon), imagesy($icon));
         imagedestroy($icon);
@@ -520,11 +534,16 @@ function draw_service_icon($image, string $source, int $x, int $y, int $black, i
 function account_metric(array $account, string $key): ?array {
     $metric = $account[$key] ?? null;
     if (!is_array($metric) || !is_numeric($metric['used'] ?? null)) return null;
-    return ['used' => max(0, min(100, (int)$metric['used'])), 'reset_at' => is_numeric($metric['reset_at'] ?? null) ? (int)$metric['reset_at'] : null];
+    $clean = ['used' => max(0, min(100, (int)$metric['used'])), 'reset_at' => is_numeric($metric['reset_at'] ?? null) ? (int)$metric['reset_at'] : null];
+    if (is_numeric($metric['available'] ?? null) && is_numeric($metric['total'] ?? null)) {
+        $clean['total'] = max(0, (int)$metric['total']);
+        $clean['available'] = max(0, min($clean['total'], (int)$metric['available']));
+    }
+    return $clean;
 }
 
 function codex_display_name(string $name): string {
-    $names = ['Codex 1' => 'Codex A', 'Codex 2' => 'Codex B', 'Codex 3' => 'Codex C'];
+    $names = ['Codex 1' => 'Codex S', 'Codex 2' => 'Codex C', 'Codex 3' => 'Codex N'];
     return $names[$name] ?? $name;
 }
 
@@ -1136,9 +1155,9 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         }
         draw_service_icon($image, $source, $divider + $p(28) + $codexShift, $baseline + $p(3), $black, $white);
         $codexName = (string)$account['name'];
-        if ($codexName === 'Codex 1') $codexName = 'Codex A';
-        elseif ($codexName === 'Codex 2') $codexName = 'Codex B';
-        elseif ($codexName === 'Codex 3') $codexName = 'Codex C';
+        if ($codexName === 'Codex 1') $codexName = 'Codex S';
+        elseif ($codexName === 'Codex 2') $codexName = 'Codex C';
+        elseif ($codexName === 'Codex 3') $codexName = 'Codex N';
         $codexNameX = $divider + $p(68) + $codexShift;
         draw_text($image, $p(21), $codexNameX, $baseline, $codexName, $black);
         $codexNameFontSize = max(1, (int)round($p(21) * (float)($GLOBALS['dashboard_font_scale'] ?? 1)));
@@ -1276,6 +1295,10 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         elseif (($account['source'] ?? '') === 'deepseek') $deepseekAccount = $account;
         else $claudeAccount = $account;
     }
+    $grokAccount = quota_source_account($state, 'grok2api') ?? [
+        'name' => 'grok2api', 'summary' => 'Build -- · Web --', 'source' => 'grok2api', 'plan' => '账号池',
+        'five_hour' => ['used' => 0], 'seven_day' => ['used' => 0],
+    ];
     $serviceX = $serviceRect[0]; $serviceRight = $serviceRect[2]; $serviceCenter = (int)(($serviceX + $serviceRight) / 2); $claudeBaseline = $weatherY + $p(56);
     draw_service_icon($image, 'claude', $serviceCenter - $p(78), $claudeBaseline - $p(7), $black, $white);
     draw_text($image, $f(17), $serviceCenter - $p(25), $claudeBaseline, 'Claude Code', $black);
@@ -1297,28 +1320,39 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
 
     draw_text($image, $f(14), $margin + $p(16), $p(884), weather_advice($weather, $forecast), $grey);
 
-    $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3]; $codexRowHeight = ($codexBottom - $codexY) / max(1, count($codexAccounts));
-    foreach ($codexAccounts as $index => $account) {
+    $quotaRows = array_merge(array_slice($codexAccounts, 0, 2), [$grokAccount]);
+    $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3]; $codexRowHeight = ($codexBottom - $codexY) / max(1, count($quotaRows));
+    foreach ($quotaRows as $index => $account) {
         $rowTop = (int)round($codexY + $index * $codexRowHeight); $rowCenter = (int)round($rowTop + $codexRowHeight / 2);
-        if ($index < count($codexAccounts) - 1) imageline($image, $codexX + $p(12), (int)round($rowTop + $codexRowHeight), $codexRight - $p(12), (int)round($rowTop + $codexRowHeight), $light);
-        draw_service_icon($image, 'codex', $codexX + $p(58), $rowCenter - $p(7), $black, $white);
-        $codexName = (string)$account['name'];
-        if ($codexName === 'Codex 1') $codexName = 'Codex A';
-        elseif ($codexName === 'Codex 2') $codexName = 'Codex B';
-        elseif ($codexName === 'Codex 3') $codexName = 'Codex C';
+        if ($index < count($quotaRows) - 1) imageline($image, $codexX + $p(12), (int)round($rowTop + $codexRowHeight), $codexRight - $p(12), (int)round($rowTop + $codexRowHeight), $light);
+        $source = (string)($account['source'] ?? 'codex');
+        $isGrok = $source === 'grok2api';
+        draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $codexX + $p(58), $rowCenter - $p(7), $black, $white);
+        $codexName = $isGrok ? 'grok2api' : (string)$account['name'];
+        if (!$isGrok && $codexName === 'Codex 1') $codexName = 'Codex S';
+        elseif (!$isGrok && $codexName === 'Codex 2') $codexName = 'Codex C';
         $codexNameX = $codexX + $p(105);
         draw_text($image, $f(17), $codexNameX, $rowCenter, $codexName, $black);
         $codexNameBox = imagettfbbox($f(17), 0, FONT_FILE, $codexName);
         $codexNameWidth = max($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]) - min($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]);
         draw_text($image, $f(14), $codexNameX + $codexNameWidth, $rowCenter + $p(29), (string)($account['plan'] ?? '—'), $grey, 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? []; $progressX = $codexX + $p(235);
-        foreach ([['5H', null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]] as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
+        $metricRows = $isGrok
+            ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
+            : [['5H', null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+        foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p($metricIndex === 0 ? -41 : 24);
             draw_text($image, $f(11), $progressX, $metricBaseline, $label, $grey);
             draw_progress($image, $progressX, $metricBaseline + $p(10), $p(195), $p(16), $used, $black, $grey, $white);
-            if ($metricIndex === 1) draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $used === null ? '--' : $used . '%', $black);
-            draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
-            draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
+            if ($isGrok || $metricIndex === 1) draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $used === null ? '--' : $used . '%', $black);
+            if ($isGrok) {
+                $count = isset($metric['available'], $metric['total']) ? $metric['available'] . ' / ' . $metric['total'] : '-- / --';
+                draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, $count, $black, 'right');
+                draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '可用', $grey, 'right');
+            } else {
+                draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
+                draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
+            }
         }
     }
     header('Content-Type: image/png'); header('Cache-Control: no-store, max-age=0');
@@ -1484,9 +1518,9 @@ function render_portrait_frame(array $device, array $state, array $config, int $
         $identityBaseline = $rowCenter - $p(8);
         draw_service_icon($image, 'codex', $codexX + $p(74), $identityBaseline + $p(3), $black, $white, $p(3));
         $displayName = (string)$account['name'];
-        if ($displayName === 'Codex 1') $displayName = 'Codex A';
-        elseif ($displayName === 'Codex 2') $displayName = 'Codex B';
-        elseif ($displayName === 'Codex 3') $displayName = 'Codex C';
+        if ($displayName === 'Codex 1') $displayName = 'Codex S';
+        elseif ($displayName === 'Codex 2') $displayName = 'Codex C';
+        elseif ($displayName === 'Codex 3') $displayName = 'Codex N';
         $nameX = $codexX + $p(126);
         draw_text($image, $p(20), $nameX, $identityBaseline, $displayName, $black);
         $nameBox = imagettfbbox((int)round($p(20 * $fontScale)), 0, FONT_FILE, $displayName);
@@ -1577,6 +1611,10 @@ function clean_metric($value): ?array {
     if (!is_array($value) || !is_numeric($value['used'] ?? null)) return null;
     $metric = ['used' => max(0, min(100, (int)round((float)$value['used'])) )];
     if (is_numeric($value['reset_at'] ?? null) && (int)$value['reset_at'] > 0) $metric['reset_at'] = (int)$value['reset_at'];
+    if (is_numeric($value['available'] ?? null) && is_numeric($value['total'] ?? null)) {
+        $metric['total'] = max(0, (int)$value['total']);
+        $metric['available'] = max(0, min($metric['total'], (int)$value['available']));
+    }
     return $metric;
 }
 

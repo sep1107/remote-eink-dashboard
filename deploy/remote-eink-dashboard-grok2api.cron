@@ -1,0 +1,1 @@
+*/15 * * * * root /opt/remote-eink-dashboard/run-grok2api-quota.sh >> /var/log/remote-eink-dashboard-grok2api.log 2>&1

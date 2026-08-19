@@ -42,3 +42,17 @@ node push_cockpit_codex.mjs --check
 ```
 
 The push payload uses anonymous labels such as `Codex 1` and contains only plan badges, percentages, and reset times.
+
+## grok2api
+
+`push_grok2api_quota.py` runs a read-only aggregate query against a co-located grok2api SQLite database. Its availability predicate matches grok2api's Build/Web account summary, including disabled, reauthentication, cooldown, recovery, and exhausted Web weekly-window states. The query selects only provider names and aggregate counts; it never reads account identity or credential columns.
+
+Use a recent SQLite CLI because older system SQLite releases cannot parse grok2api's current schema:
+
+```sh
+GROK2API_SQLITE_BIN=/path/to/sqlite3 \
+GROK2API_DB_PATH=/path/to/backend.db \
+python3 push_grok2api_quota.py --check
+```
+
+The normal mode also requires the dashboard variables shown above. It sends the Build/Web available percentage together with the available and total counts.

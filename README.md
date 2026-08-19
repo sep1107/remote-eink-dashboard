@@ -7,7 +7,7 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 - Native layouts for 1072×1448 portrait, 1440×1080 landscape, and 720×1440 Android e-ink screens.
 - Open-Meteo weather, air quality, UV index, sunrise, sunset, and forecasts.
 - Token-protected frame, viewer, widget, and quota-ingest endpoints.
-- Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, and local or remote Linux server status.
+- Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, grok2api Build/Web pool availability, and local or remote Linux server status.
 - Android 4.2+ client with orientation-specific offline caches.
 - Kindle KUAL extension with timed Wi-Fi wake, download, display, and suspend.
 - Scriptable widgets and a responsive calendar/weather page.
@@ -31,7 +31,7 @@ Current production frames captured on 2026-07-22.
 ## Privacy model
 
 - Device and viewer tokens are supplied through `.dashboard.env`; populated environment files are ignored by Git.
-- Collectors submit only percentages, reset timestamps, plan badges, and formatted balances.
+- Collectors submit only percentages, reset timestamps, plan badges, formatted balances, and aggregate account-pool counts.
 - Remote server collectors submit CPU, load, memory, disk, and optional Docker summaries through a dedicated ingest token.
 - OAuth tokens and provider API keys stay on the collector host.
 - Frame and viewer routes should not be written to access logs because their tokens are path components.
@@ -63,6 +63,14 @@ POST /v1/ingest/quota
 Authorization: Bearer YOUR_INGEST_TOKEN
 ```
 
+For a co-located grok2api SQLite deployment, `collector/push_grok2api_quota.py` reproduces grok2api's provider availability rules and submits only aggregate Build/Web available and total counts. It never selects account identity or credential columns. Use a recent `sqlite3` executable that can read the grok2api schema, then install the collector, `deploy/run-grok2api-quota.sh`, and `deploy/remote-eink-dashboard-grok2api.cron`. Verify the read-only query before enabling the schedule:
+
+```sh
+GROK2API_SQLITE_BIN=/path/to/sqlite3 \
+GROK2API_DB_PATH=/path/to/backend.db \
+python3 collector/push_grok2api_quota.py --check
+```
+
 To show more than one server on the responsive viewer, set `DASHBOARD_SERVERS_JSON`. The first entry uses the dashboard host's local `server-status.json`; every additional entry is written by the authenticated remote-status endpoint:
 
 ```dotenv
@@ -70,7 +78,7 @@ DASHBOARD_SERVERS_JSON=[{"id":"local","label":"Primary Server"},{"id":"server-2"
 DASHBOARD_SERVER_STATUS_TOKEN=REPLACE_WITH_ANOTHER_64_HEX_CHARACTERS
 ```
 
-Install `php/collect_server_status.php` locally to collect the primary server. On each remote Linux server, install the same collector together with the example environment, service, and timer from `deploy/remote-eink-dashboard-status.*`. Use a dedicated unprivileged account, keep the populated environment file root-managed with read access limited to the collector group, and give each remote server a unique ID that also appears in `DASHBOARD_SERVERS_JSON`. The timer submits one small status summary per minute:
+Install `php/collect_server_status.php` locally to collect the primary server. On each remote Linux server, install the same collector together with the example environment, service, and timer from `deploy/remote-eink-dashboard-status.*`. A remote host without PHP can run `collector/collect_server_status.py` instead: it is a standard-library port that reads the same environment variables and submits the same payload, so only the unit's `ExecStart` changes to `/usr/bin/python3 /usr/local/sbin/eink-dashboard-status.py`. Use a dedicated unprivileged account, keep the populated environment file root-managed with read access limited to the collector group, and give each remote server a unique ID that also appears in `DASHBOARD_SERVERS_JSON`. The timer submits one small status summary per minute:
 
 ```text
 POST /v1/ingest/server-status/SERVER_ID

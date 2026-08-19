@@ -193,8 +193,9 @@ def _quota_accounts(quota: dict[str, Any]) -> list[dict[str, str]]:
         return accounts if isinstance(accounts, list) else []
 
     flattened: list[dict[str, str]] = []
-    ordered_sources = [name for name in ("codex", "claude", "deepseek") if name in sources]
+    ordered_sources = [name for name in ("claude", "deepseek", "codex", "grok2api") if name in sources]
     ordered_sources.extend(name for name in sources if name not in ordered_sources)
+    codex_count = 0
     for source in ordered_sources:
         entry = sources.get(source)
         accounts = entry.get("accounts") if isinstance(entry, dict) else None
@@ -202,8 +203,12 @@ def _quota_accounts(quota: dict[str, Any]) -> list[dict[str, str]]:
             continue
         for account in accounts:
             if isinstance(account, dict):
+                if source == "codex":
+                    codex_count += 1
+                    if codex_count > 2:
+                        continue
                 flattened.append(account)
-    return flattened
+    return flattened[:5]
 
 
 def _calendar(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], now: datetime, scale: float) -> None:

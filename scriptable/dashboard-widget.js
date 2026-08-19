@@ -210,6 +210,12 @@ function accountText(accounts) {
       parts.push("DeepSeek " + value(account.summary, "--").replace(/^Balance\s*/i, ""));
       continue;
     }
+    if (account.source === "grok2api") {
+      const build = account.five_hour || {};
+      const web = account.seven_day || {};
+      parts.push("grok2api Build " + value(build.used, "--") + "% · Web " + value(web.used, "--") + "%");
+      continue;
+    }
     const sevenDay = account.seven_day || {};
     if (sevenDay.used !== null && sevenDay.used !== undefined) parts.push(account.name + " " + sevenDay.used + "%");
   }

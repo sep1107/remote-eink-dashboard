@@ -8,13 +8,14 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 - Open-Meteo weather, air quality, UV index, sunrise, sunset, and forecasts.
 - Token-protected frame, viewer, widget, and quota-ingest endpoints.
 - Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, grok2api Build/Web pool availability, and local or remote Linux server status.
+- Consistent quota cards across native and responsive layouts: two Codex accounts plus grok2api Build/Web pool availability.
 - Android 4.2+ client with orientation-specific offline caches.
 - Kindle KUAL extension with timed Wi-Fi wake, download, display, and suspend.
 - Scriptable widgets and a responsive calendar/weather page.
 
 ## Screenshots
 
-Current production frames captured on 2026-07-22.
+Representative PHP frames rendered with fixture data on 2026-08-19.
 
 ### KO1 / Android 4.2 (landscape)
 

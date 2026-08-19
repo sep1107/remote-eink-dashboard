@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image
 
-from server.app import Config, Device, create_app, render_dashboard
+from server.app import Config, Device, _quota_accounts, create_app, render_dashboard
 
 
 def config(tmp_path: Path) -> Config:
@@ -52,6 +52,21 @@ def test_frame_renders_multiple_quota_accounts():
     png = render_dashboard(device, state, datetime(2026, 7, 16, tzinfo=ZoneInfo("Asia/Shanghai")))
     image = Image.open(io.BytesIO(png))
     assert image.size == (1072, 1448)
+
+
+def test_grok_pool_replaces_third_codex_account():
+    accounts = _quota_accounts({"sources": {
+        "codex": {"accounts": [
+            {"name": "Codex 1", "summary": "周 10%"},
+            {"name": "Codex 2", "summary": "周 20%"},
+            {"name": "Codex 3", "summary": "周 30%"},
+        ]},
+        "claude": {"accounts": [{"name": "Claude", "summary": "周 40%"}]},
+        "deepseek": {"accounts": [{"name": "DeepSeek", "summary": "¥7.50"}]},
+        "grok2api": {"accounts": [{"name": "grok2api", "summary": "Build 222/224 · Web 55/55"}]},
+    }})
+
+    assert [account["name"] for account in accounts] == ["Claude", "DeepSeek", "Codex 1", "Codex 2", "grok2api"]
 
 
 def test_collectors_keep_each_others_quota_accounts(tmp_path):

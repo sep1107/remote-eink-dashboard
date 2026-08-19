@@ -213,7 +213,7 @@ function accountText(accounts) {
     if (account.source === "grok2api") {
       const build = account.five_hour || {};
       const web = account.seven_day || {};
-      parts.push("grok2api Build " + value(build.used, "--") + "% · Web " + value(web.used, "--") + "%");
+      parts.push("Grok Build " + value(build.used, "--") + "% · Web " + value(web.used, "--") + "%");
       continue;
     }
     const sevenDay = account.seven_day || {};

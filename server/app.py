@@ -207,8 +207,14 @@ def _quota_accounts(quota: dict[str, Any]) -> list[dict[str, str]]:
                     codex_count += 1
                     if codex_count > 2:
                         continue
-                flattened.append(account)
+                display_account = dict(account)
+                display_account["source"] = source
+                flattened.append(display_account)
     return flattened[:5]
+
+
+def _quota_display_name(account: dict[str, str]) -> str:
+    return "Grok" if account.get("source") == "grok2api" else str(account.get("name") or "账号")
 
 
 def _calendar(draw: ImageDraw.ImageDraw, box: tuple[int, int, int, int], now: datetime, scale: float) -> None:
@@ -290,7 +296,7 @@ def render_dashboard(device: Device, state: dict[str, Any], now: datetime) -> by
             if not isinstance(account, dict):
                 continue
             y = qy1 + 55 * scale + index * row_height
-            name = str(account.get("name") or "账号")[:14]
+            name = _quota_display_name(account)[:14]
             summary = str(account.get("summary") or "--")[:38]
             draw.text((qx1 + 18 * scale, y), name, font=small_font, fill=0)
             draw.text((qx2 - 18 * scale, y), summary, font=small_font, fill=0, anchor="ra")

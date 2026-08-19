@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from PIL import Image
 
-from server.app import Config, Device, _quota_accounts, create_app, render_dashboard
+from server.app import Config, Device, _quota_accounts, _quota_display_name, create_app, render_dashboard
 
 
 def config(tmp_path: Path) -> Config:
@@ -67,6 +67,7 @@ def test_grok_pool_replaces_third_codex_account():
     }})
 
     assert [account["name"] for account in accounts] == ["Claude", "DeepSeek", "Codex 1", "Codex 2", "grok2api"]
+    assert _quota_display_name(accounts[-1]) == "Grok"
 
 
 def test_collectors_keep_each_others_quota_accounts(tmp_path):

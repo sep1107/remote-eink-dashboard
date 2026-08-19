@@ -569,6 +569,11 @@ function codex_display_name(string $name): string {
     return $names[$name] ?? $name;
 }
 
+function quota_display_name(array $account): string {
+    if (($account['source'] ?? '') === 'grok2api') return 'Grok';
+    return codex_display_name((string)($account['name'] ?? '--'));
+}
+
 function reset_time_label(?int $timestamp, int $maxAheadSeconds): string {
     $now = time();
     if (!$timestamp || $timestamp <= $now || $timestamp > $now + $maxAheadSeconds) return '--';
@@ -742,7 +747,7 @@ function widget_payload(array $device, array $config): array {
     foreach (quota_accounts($state) as $account) {
         $accounts[] = [
             'source' => (string)($account['source'] ?? ''),
-            'name' => substr(codex_display_name((string)($account['name'] ?? '--')), 0, 32),
+            'name' => substr(quota_display_name($account), 0, 32),
             'plan' => substr((string)($account['plan'] ?? ''), 0, 20),
             'summary' => substr((string)($account['summary'] ?? '--'), 0, 80),
             'five_hour' => widget_quota_metric(account_metric($account, 'five_hour'), 18300),
@@ -992,7 +997,7 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     $grokBuild = account_metric($grokAccount, 'five_hour');
     $grokWeb = account_metric($grokAccount, 'seven_day');
     $grokHtml = '<article class="ai-account grok">'
-        . '<div class="account-heading"><img src="/assets/grok.png" alt=""><div><b>grok2api</b><span>账号池</span></div></div>'
+        . '<div class="account-heading"><img src="/assets/grok.png" alt=""><div><b>Grok</b><span>账号池</span></div></div>'
         . iphone_metric_html('Build', $grokBuild, 0, quota_count_label($grokBuild))
         . iphone_metric_html('Web', $grokWeb, 0, quota_count_label($grokWeb))
         . '</article>';
@@ -1186,7 +1191,7 @@ function render_landscape_frame(array $device, array $state, array $config, int 
             imageline($image, $divider + $p(18), $rowBottom, $aiRect[2] - $p(18), $rowBottom, $light);
         }
         draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $divider + $p(28) + $codexShift, $baseline + $p(3), $black, $white, $isGrok ? $p(76) - 76 : 0);
-        $codexName = $isGrok ? 'grok2api' : (string)$account['name'];
+        $codexName = quota_display_name($account);
         if (!$isGrok && $codexName === 'Codex 1') $codexName = 'Codex S';
         elseif (!$isGrok && $codexName === 'Codex 2') $codexName = 'Codex C';
         $codexNameX = $divider + $p(68) + $codexShift;
@@ -1194,7 +1199,7 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         $codexNameFontSize = max(1, (int)round($p(21) * (float)($GLOBALS['dashboard_font_scale'] ?? 1)));
         $codexNameBox = imagettfbbox($codexNameFontSize, 0, FONT_FILE, $codexName);
         $codexNameWidth = max($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]) - min($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]);
-        draw_text($image, $p(19), $codexNameX + $codexNameWidth, $baseline + $p(30), (string)($account['plan'] ?? '—'), $grey, 'right');
+        draw_text($image, $p(19), $isGrok ? $codexNameX : $codexNameX + $codexNameWidth, $baseline + $p(30), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? [];
         $sevenDayMetric = account_metric($account, 'seven_day') ?? [];
         $codexProgressX = $divider + $p(300) + $codexShift;
@@ -1362,14 +1367,14 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         $source = (string)($account['source'] ?? 'codex');
         $isGrok = $source === 'grok2api';
         draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $codexX + $p(58), $rowCenter - $p(7), $black, $white);
-        $codexName = $isGrok ? 'grok2api' : (string)$account['name'];
+        $codexName = quota_display_name($account);
         if (!$isGrok && $codexName === 'Codex 1') $codexName = 'Codex S';
         elseif (!$isGrok && $codexName === 'Codex 2') $codexName = 'Codex C';
         $codexNameX = $codexX + $p(105);
         draw_text($image, $f(17), $codexNameX, $rowCenter, $codexName, $black);
         $codexNameBox = imagettfbbox($f(17), 0, FONT_FILE, $codexName);
         $codexNameWidth = max($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]) - min($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]);
-        draw_text($image, $f(14), $codexNameX + $codexNameWidth, $rowCenter + $p(29), (string)($account['plan'] ?? '—'), $grey, 'right');
+        draw_text($image, $f(14), $isGrok ? $codexNameX : $codexNameX + $codexNameWidth, $rowCenter + $p(29), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? []; $progressX = $codexX + $p(235);
         $metricRows = $isGrok
             ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
@@ -1551,14 +1556,14 @@ function render_portrait_frame(array $device, array $state, array $config, int $
         $identityBaseline = $rowCenter - $p(8);
         $source = (string)($account['source'] ?? 'codex'); $isGrok = $source === 'grok2api';
         draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $codexX + $p(74), $identityBaseline + $p(3), $black, $white, $isGrok ? $p(79) - 76 : $p(3));
-        $displayName = $isGrok ? 'grok2api' : (string)$account['name'];
+        $displayName = quota_display_name($account);
         if (!$isGrok && $displayName === 'Codex 1') $displayName = 'Codex S';
         elseif (!$isGrok && $displayName === 'Codex 2') $displayName = 'Codex C';
         $nameX = $codexX + $p(126);
         draw_text($image, $p(20), $nameX, $identityBaseline, $displayName, $black);
         $nameBox = imagettfbbox((int)round($p(20 * $fontScale)), 0, FONT_FILE, $displayName);
         $nameRight = $nameX + max($nameBox[0], $nameBox[2], $nameBox[4], $nameBox[6]) - min($nameBox[0], $nameBox[2], $nameBox[4], $nameBox[6]);
-        draw_text($image, $p(17), $nameRight, $identityBaseline + $p(28), (string)($account['plan'] ?? '—'), $grey, 'right');
+        draw_text($image, $p(17), $isGrok ? $nameX : $nameRight, $identityBaseline + $p(28), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? [];
         $progressX = $codexX + $p(365);
         $metricRows = $isGrok
@@ -1622,7 +1627,7 @@ function render_frame(array $device, array $state, array $config): void {
     foreach ($accounts as $index => $account) {
         $baseline = $quota[1] + 58 + $index * $rowHeight;
         $summary = substr($account['summary'], 0, $isLandscape ? 34 : 42);
-        draw_text($image, max(10, (int)(14 * $panelScale)), $quota[0] + 18, $baseline, substr($account['name'], 0, 16), $black);
+        draw_text($image, max(10, (int)(14 * $panelScale)), $quota[0] + 18, $baseline, substr(quota_display_name($account), 0, 16), $black);
         draw_text($image, max(10, (int)(14 * $panelScale)), $quota[2] - 18, $baseline, $summary, $black, 'right');
     }
     $updated = (int)($state['weather_updated_at'] ?? 0);

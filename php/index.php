@@ -1205,12 +1205,12 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         $codexProgressX = $divider + $p(300) + $codexShift;
         $metricRows = $isGrok
             ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p($metricIndex === 0 ? -50 : 13) + ($index === 0 ? 0 : $p(18));
             draw_text($image, $p(14), $codexProgressX, $metricBaseline, $label, $grey);
             draw_progress($image, $codexProgressX, $metricBaseline + $p(10), $p(180), $p(19), $used, $black, $grey, $white);
-            if ($isGrok || $metricIndex === 1) draw_text($image, $p(19), $codexProgressX + $p(195), $metricBaseline + $p(29), $used === null ? '--' : $used . '%', $black);
+            draw_text($image, $p(19), $codexProgressX + $p(195), $metricBaseline + $p(29), $used === null ? '--' : $used . '%', $black);
             if ($isGrok) {
                 draw_text($image, $p(19), $aiRect[2] - $p(20), $metricBaseline, quota_count_label($metric), $black, 'right');
                 draw_text($image, $p(14), $aiRect[2] - $p(20), $metricBaseline + $p(29), '可用', $grey, 'right');
@@ -1378,12 +1378,12 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? []; $progressX = $codexX + $p(235);
         $metricRows = $isGrok
             ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p($metricIndex === 0 ? -41 : 24);
             draw_text($image, $f(11), $progressX, $metricBaseline, $label, $grey);
             draw_progress($image, $progressX, $metricBaseline + $p(10), $p(195), $p(16), $used, $black, $grey, $white);
-            if ($isGrok || $metricIndex === 1) draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $used === null ? '--' : $used . '%', $black);
+            draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $used === null ? '--' : $used . '%', $black);
             if ($isGrok) {
                 draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, quota_count_label($metric), $black, 'right');
                 draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '可用', $grey, 'right');
@@ -1568,12 +1568,12 @@ function render_portrait_frame(array $device, array $state, array $config, int $
         $progressX = $codexX + $p(365);
         $metricRows = $isGrok
             ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p(-41 + $metricIndex * $metricGroupGap);
             draw_text($image, $p(13), $progressX, $metricBaseline, $label, $grey);
             draw_progress($image, $progressX, $metricBaseline + $p(10), $p(260), $p(18), $used, $black, $grey, $white);
-            if ($isGrok || $metricIndex === 1) draw_text($image, $p(18), $progressX + $p(274), $metricBaseline + $p(28), $used === null ? '--' : $used . '%', $black);
+            draw_text($image, $p(18), $progressX + $p(274), $metricBaseline + $p(28), $used === null ? '--' : $used . '%', $black);
             if ($isGrok) {
                 draw_text($image, $p(18), $codexRight - $p(18), $metricBaseline, quota_count_label($metric), $black, 'right');
                 draw_text($image, $p(13), $codexRight - $p(18), $metricBaseline + $p(28), '可用', $grey, 'right');

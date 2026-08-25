@@ -9,6 +9,7 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 - Token-protected frame, viewer, widget, and quota-ingest endpoints.
 - Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, grok2api Build/Web pool availability, and local or remote Linux server status.
 - Consistent quota cards across native and responsive layouts: two Codex accounts plus Grok Build/Web pool availability.
+- Codex 5H and 7D windows show their usage bars, percentages, and valid reset times on every native layout.
 - Android 4.2+ client with orientation-specific offline caches.
 - Kindle KUAL extension with timed Wi-Fi wake, download, display, and suspend.
 - Scriptable widgets and a responsive calendar/weather page.

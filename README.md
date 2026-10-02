@@ -87,6 +87,30 @@ POST /v1/ingest/server-status/SERVER_ID
 Authorization: Bearer YOUR_SERVER_STATUS_TOKEN
 ```
 
+## Search indexing boundary
+
+The PHP public homepage and `/install` remain indexable and include descriptions.
+Set `DASHBOARD_PUBLIC_URL=https://ai.hpqq.fun/` in `php/.dashboard.env` on the
+hosted site (or your own public HTTPS root URL on a fork) to emit the homepage
+canonical. The static installer canonical is `https://ai.hpqq.fun/install`;
+self-hosted deployments must replace it with their own public installation URL.
+The PHP Nginx include serves `/install` from the repository root via an alias;
+placing SEO files in the repository root alone does not make them HTTP routes.
+
+All other PHP responses and all Python renderer responses carry
+`X-Robots-Tag: noindex, nofollow`, including PNG/JSON, rejected tokens, ingest
+responses and errors. The Python container serves only API routes, not the PHP
+homepage or static installer. Authentication, payloads and status codes are
+unchanged. Indexing hints are not access controls: keep tokens private and keep
+the existing Nginx denials for configuration, state and font files.
+
+No sitemap or robots.txt is required for this small patch. Do not add robots.txt
+`Disallow` rules for these endpoints as a substitute for noindex: crawlers need
+to receive the response header. Never publish device/token URLs in a sitemap,
+canonical or public link. After deployment, verify response headers through the
+actual HTTPS proxy and inspect the public pages in Search Console. A domain-level
+Search Console impressions notice does not identify which URLs were indexed.
+
 ## Container deployment
 
 The repository also includes a smaller Python/Gunicorn renderer:

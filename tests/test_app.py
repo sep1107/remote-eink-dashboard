@@ -20,6 +20,7 @@ def test_frame_requires_device_token(tmp_path):
     response = client.get("/frame/kpw3/frame-token.png")
     assert response.status_code == 200
     assert response.content_type == "image/png"
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
     image = Image.open(io.BytesIO(response.data))
     assert image.size == (1072, 1448)
     assert image.mode == "L"
@@ -31,6 +32,25 @@ def test_quota_ingest_uses_bearer_token(tmp_path):
     assert client.post("/v1/ingest/quota", json=payload).status_code == 401
     response = client.post("/v1/ingest/quota", json=payload, headers={"Authorization": "Bearer ingest-token"})
     assert response.status_code == 200
+    assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
+
+
+def test_api_indexing_boundary_includes_rejected_requests(tmp_path):
+    client = create_app(config(tmp_path)).test_client()
+    cases = [
+        ("GET", "/health", 200),
+        ("GET", "/frame/kpw3/wrong.png", 404),
+        ("GET", "/viewer/kpw3/wrong", 404),
+        ("GET", "/widget/kpw3/wrong.json", 404),
+        ("POST", "/v1/ingest/quota", 401),
+        ("GET", "/v1/ingest/quota", 405),
+        ("POST", "/v1/ingest/unknown", 404),
+        ("GET", "/", 404),
+    ]
+    for method, path, status in cases:
+        response = client.open(path, method=method)
+        assert response.status_code == status
+        assert response.headers["X-Robots-Tag"] == "noindex, nofollow"
 
 
 def test_landscape_frame_rotates_to_physical_size():

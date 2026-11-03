@@ -7,7 +7,7 @@ A self-hosted dashboard for Kindle and Android e-ink devices. It renders low-fre
 - Native layouts for 1072×1448 portrait, 1440×1080 landscape, and 720×1440 Android e-ink screens.
 - Open-Meteo weather, air quality, UV index, sunrise, sunset, and forecasts.
 - Token-protected frame, viewer, widget, and quota-ingest endpoints.
-- Optional collectors for Claude Code, Codex via Cockpit Tools, DeepSeek balance, Alibaba Cloud account balance, grok2api Build/Web pool availability, and local or remote Linux server status.
+- Optional collectors for Claude Code, Codex via Cockpit Tools, the official DeepSeek balance API, grok2api Build/Web pool availability, and local or remote Linux server status.
 - Consistent quota cards across native and responsive layouts: two Codex accounts plus Grok Build/Web pool availability.
 - Codex 5H and 7D windows show their usage bars, percentages, and valid reset times on every native layout.
 - Android 4.2+ client with orientation-specific offline caches.
@@ -110,12 +110,6 @@ to receive the response header. Never publish device/token URLs in a sitemap,
 canonical or public link. After deployment, verify response headers through the
 actual HTTPS proxy and inspect the public pages in Search Console. A domain-level
 Search Console impressions notice does not identify which URLs were indexed.
-
-## Company provider balances
-
-`collector/push_deepseek_balance.py` can submit a separate company account by setting `EINK_DASHBOARD_SOURCE=company_deepseek` and `EINK_DASHBOARD_ACCOUNT_NAME`. It reads the DeepSeek key from the collector process environment and sends only the formatted balance.
-
-`collector/push_aliyun_account_balance.py` uses the official Alibaba Cloud CLI BSS `QueryAccountBalance` operation and displays the account's `AvailableAmount`. A DashScope/Model Studio API Key cannot query the Alibaba Cloud account balance; configure a dedicated RAM AccessKey with the custom `bssapi:QueryAccountBalance` read permission (or an appropriate BSS read-only policy) in the collector environment. The helper `deploy/configure-company-aliyun-balance.py` prompts for the credential without echo, verifies the read-only query, and writes it to a mode-0600 environment file. The credential stays on the collector host; only currency and available amount are submitted to the dashboard.
 
 ## Container deployment
 

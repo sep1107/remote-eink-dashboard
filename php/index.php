@@ -354,23 +354,21 @@ function weather_advice(array $weather, array $forecast): string {
 function quota_accounts(array $state): array {
     $quota = is_array($state['quota'] ?? null) ? $state['quota'] : [];
     $sources = is_array($quota['sources'] ?? null) ? $quota['sources'] : [];
-    $ordered = array_values(array_unique(array_merge(['claude', 'company_deepseek', 'company_aliyun', 'codex', 'grok2api'], array_keys($sources))));
+    $ordered = array_values(array_unique(array_merge(['claude', 'deepseek', 'codex', 'grok2api'], array_keys($sources))));
     $accounts = [];
     $codexCount = 0;
     foreach ($ordered as $source) {
-        if ($source === 'deepseek') continue;
         $items = $sources[$source]['accounts'] ?? [];
         if (!is_array($items)) continue;
         foreach ($items as $item) {
             if (is_array($item) && is_string($item['name'] ?? null) && is_string($item['summary'] ?? null)) {
                 if ($source === 'codex' && $codexCount++ >= 2) continue;
                 $item['source'] = $source;
-                $item['source_updated_at'] = $sources[$source]['updated_at'] ?? null;
                 $accounts[] = $item;
             }
         }
     }
-    return array_slice($accounts, 0, 7);
+    return array_slice($accounts, 0, 5);
 }
 
 function quota_source_account(array $state, string $source): ?array {
@@ -572,16 +570,8 @@ function codex_display_name(string $name): string {
 }
 
 function quota_display_name(array $account): string {
-    $source = (string)($account['source'] ?? '');
-    if ($source === 'grok2api') return 'Grok';
-    if ($source === 'company_deepseek') return 'DeepSeek 公司';
-    if ($source === 'company_aliyun') return '阿里云账户';
+    if (($account['source'] ?? '') === 'grok2api') return 'Grok';
     return codex_display_name((string)($account['name'] ?? '--'));
-}
-
-function balance_summary(array $account): string {
-    $summary = trim((string)($account['summary'] ?? '--'));
-    return preg_replace('/^(?:Balance|Available)\s*/i', '', $summary) ?? $summary;
 }
 
 function reset_time_label(?int $timestamp, int $maxAheadSeconds): string {
@@ -982,7 +972,6 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
 
     $claudeHtml = '';
     $deepseekHtml = '';
-    $aliyunHtml = '';
     $codexHtml = '';
     foreach (quota_accounts($state) as $account) {
         $source = (string)($account['source'] ?? '');
@@ -995,22 +984,10 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
                 . '</article>';
             continue;
         }
-        if ($source === 'company_deepseek') {
-            $balance = balance_summary($account);
-            $updatedAt = is_string($account['source_updated_at'] ?? null) ? strtotime($account['source_updated_at']) : false;
-            $updatedText = is_int($updatedAt) ? '更新 ' . date('H:i', $updatedAt) : '等待采集';
+        if ($source === 'deepseek') {
+            $balance = preg_replace('/^Balance\s*/i', '', (string)$account['summary']);
             $deepseekHtml .= '<article class="ai-account deepseek">'
-                . '<div class="account-heading"><img src="/assets/deepseek.png" alt=""><div><b>DeepSeek 公司</b><span>公司 API 余额 · ' . html_escape($updatedText) . '</span></div></div>'
-                . '<strong class="balance">' . html_escape($balance) . '</strong>'
-                . '</article>';
-            continue;
-        }
-        if ($source === 'company_aliyun') {
-            $balance = balance_summary($account);
-            $updatedAt = is_string($account['source_updated_at'] ?? null) ? strtotime($account['source_updated_at']) : false;
-            $updatedText = is_int($updatedAt) ? '更新 ' . date('H:i', $updatedAt) : '等待采集';
-            $aliyunHtml .= '<article class="ai-account deepseek aliyun">'
-                . '<div class="account-heading"><div><b>阿里云账户</b><span>账号可用余额 · ' . html_escape($updatedText) . '</span></div></div>'
+                . '<div class="account-heading"><img src="/assets/deepseek.png" alt=""><div><b>DeepSeek</b><span>官方 API 余额</span></div></div>'
                 . '<strong class="balance">' . html_escape($balance) . '</strong>'
                 . '</article>';
             continue;
@@ -1033,8 +1010,7 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
         . iphone_metric_html('Web', $grokWeb, 0, quota_count_label($grokWeb))
         . '</article>';
     if ($claudeHtml === '') $claudeHtml = '<article class="ai-account claude empty"><b>Claude Code</b><span>暂未接入</span></article>';
-    if ($deepseekHtml === '') $deepseekHtml = '<article class="ai-account deepseek empty"><b>DeepSeek 公司</b><span>等待余额采集</span></article>';
-    if ($aliyunHtml === '') $aliyunHtml = '<article class="ai-account aliyun empty"><b>阿里云账户</b><span>等待公司只读余额凭据</span></article>';
+    if ($deepseekHtml === '') $deepseekHtml = '<article class="ai-account deepseek empty"><b>DeepSeek</b><span>暂未接入</span></article>';
     if ($codexHtml === '') $codexHtml = '<article class="ai-account codex empty"><b>Codex</b><span>暂未接入</span></article>';
 
     $serverHtml = '';
@@ -1053,7 +1029,7 @@ CSS;
     echo '<section class="hero"><span class="city">📍 ' . html_escape($city) . '</span><div class="now"><span class="emoji">' . iphone_weather_emoji($weather['code'] ?? null) . '</span><div><strong>' . $temperature . '<small>°C</small></strong><p>' . html_escape(weather_label($weather['code'] ?? null)) . '</p></div></div><div class="range">今日 ' . $low . '° / ' . $high . '°</div><div class="stats"><span>湿度<b>' . html_escape($weather['humidity'] ?? '--') . '%</b></span><span>风力<b>' . html_escape($wind === null ? '--' : $wind) . '级</b></span><span>空气质量<b>' . html_escape(air_quality_label($aqi)) . ' ' . html_escape($aqi ?? '--') . '</b></span><span>紫外线<b>' . html_escape($uvLevel) . '</b></span></div></section>';
     echo '<section class="section"><div class="section-head"><h2>未来天气</h2><span>' . html_escape($city) . '</span></div><div class="forecasts">' . $forecastHtml . '</div><div class="advice"><b>☂</b><span>' . html_escape(weather_advice($weather, $forecast)) . '</span></div></section>';
     echo $serverHtml;
-    echo '<section class="section ai"><div class="section-head ai-title"><h2>API 与云账户余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . $deepseekHtml . $aliyunHtml . $codexHtml . $grokHtml . '</section>';
+    echo '<section class="section ai"><div class="section-head ai-title"><h2>AI 余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . $deepseekHtml . $codexHtml . $grokHtml . '</section>';
     echo '<div class="footer">更新于 ' . html_escape(date('H:i', $now)) . ' · 设备电量 ' . html_escape($batteryText) . '</div></main><script>setInterval(function(){location.reload();},' . ($refreshMinutes * 60000) . ');document.addEventListener("visibilitychange",function(){if(!document.hidden)location.reload();});</script></body></html>';
     exit;
 }
@@ -1168,14 +1144,14 @@ function render_landscape_frame(array $device, array $state, array $config, int 
     imageline($image, $weatherRect[0] + $p(22), $weatherContentBottom, $weatherRect[2] - $p(22), $weatherContentBottom, $light);
     draw_text($image, $p(19), $weatherRect[0] + $p(10), $top + $p(344), weather_advice($weather, $forecast), $grey);
 
-    draw_text($image, $p(26), $aiRect[0] + $p(24), $aiRect[1] + $p(42), 'API 与云账户余额', $black);
+    draw_text($image, $p(26), $aiRect[0] + $p(24), $aiRect[1] + $p(42), 'AI 余额', $black);
     draw_text($image, $p(16), $aiRect[2] - $p(24), $aiRect[1] + $p(40), '且用且珍惜 ^_^', $grey, 'right');
     imageline($image, $aiRect[0], $aiRect[1] + $p(58), $aiRect[2], $aiRect[1] + $p(58), $grey);
     $divider = $aiRect[0] + $p(455);
     imageline($image, $divider, $aiRect[1] + $p(58), $divider, $aiRect[3], $grey);
     $leftAccounts = [];
     foreach (quota_accounts($state) as $account) {
-        if (($account['source'] ?? '') === 'claude') $leftAccounts[] = $account;
+        if (in_array(($account['source'] ?? ''), ['claude', 'deepseek'], true)) $leftAccounts[] = $account;
     }
     $leftAccountCenter = (int)(($aiRect[0] + $divider) / 2);
     $aiContentTop = $aiRect[1] + $p(76); $aiContentBottom = $aiRect[3];
@@ -1188,9 +1164,14 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         $serviceIconX = $leftAccountCenter - $p(74);
         $serviceNameX = $leftAccountCenter - $p(18);
         $identityBaseline = $source === 'deepseek' ? $baseline - $p(5) : $baseline;
-        draw_service_icon($image, $source === 'company_deepseek' ? 'deepseek' : $source, $serviceIconX, $identityBaseline - $p(8), $black, $white);
-        $name = $source === 'claude' ? 'Claude Code' : 'DeepSeek 公司';
+        draw_service_icon($image, $source, $serviceIconX, $identityBaseline - $p(8), $black, $white);
+        $name = $source === 'claude' ? 'Claude Code' : 'DeepSeek';
         draw_text($image, $p(21), $serviceNameX, $identityBaseline, $name, $black);
+        if ($source === 'deepseek') {
+            $balance = preg_replace('/^Balance\\s*/i', '', (string)$account['summary']);
+            draw_text($image, $p(27), $leftAccountCenter, $baseline + $p(58), $balance, $black, 'center');
+            continue;
+        }
         $claudeMetrics = [
             ['5H', account_metric($account, 'five_hour') ?? ['used' => 0]],
             ['7D', account_metric($account, 'seven_day') ?? ['used' => 0]],
@@ -1207,16 +1188,6 @@ function render_landscape_frame(array $device, array $state, array $config, int 
             draw_text($image, $p(14), $divider - $p(20), $metricBaseline + $p(29), '重置', $grey, 'right');
         }
     }
-    $aliyunAccount = quota_source_account($state, 'company_aliyun') ?? [];
-    $aliyunSummary = isset($aliyunAccount['summary']) ? balance_summary($aliyunAccount) : '待配置';
-    $balanceCenterLeft = $aiRect[0] + (int)round($p(455) / 4);
-    $balanceCenterRight = $divider - (int)round($p(455) / 4);
-    imageline($image, $aiRect[0], $leftDividerY, $divider, $leftDividerY, $grey);
-    imageline($image, $leftAccountCenter, $leftDividerY, $leftAccountCenter, $aiContentBottom, $light);
-    draw_text($image, $p(18), $balanceCenterLeft, $leftDividerY + $p(48), 'DeepSeek 公司', $black, 'center');
-    draw_text($image, $p(18), $balanceCenterRight, $leftDividerY + $p(48), '阿里云账户', $black, 'center');
-    draw_text($image, $p(25), $balanceCenterLeft, $leftDividerY + $p(91), balance_summary(quota_source_account($state, 'company_deepseek') ?? []), $black, 'center');
-    draw_text($image, $p(25), $balanceCenterRight, $leftDividerY + $p(91), $aliyunSummary, $black, 'center');
     $quotaRows = codex_grok_quota_rows($state);
     $codexRowHeight = ($aiContentBottom - $aiContentTop) / max(1, count($quotaRows));
     $codexShift = $p(34);
@@ -1370,10 +1341,9 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         draw_text($image, $f(10), $cellCenter, $forecastTop + $p(185), '风力 ' . ($forecastWindLevel ?? '--') . '级', $grey, 'center');
     }
 
-    $claudeAccount = null; $deepseekAccount = null; $aliyunAccount = null;
+    $claudeAccount = null; $deepseekAccount = null;
     foreach (quota_accounts($state) as $account) {
-        if (($account['source'] ?? '') === 'company_deepseek') $deepseekAccount = $account;
-        elseif (($account['source'] ?? '') === 'company_aliyun') $aliyunAccount = $account;
+        if (($account['source'] ?? '') === 'deepseek') $deepseekAccount = $account;
         elseif (($account['source'] ?? '') === 'claude') $claudeAccount = $account;
     }
     $serviceX = $serviceRect[0]; $serviceRight = $serviceRect[2]; $serviceCenter = (int)(($serviceX + $serviceRight) / 2); $claudeBaseline = $weatherY + $p(56);
@@ -1389,11 +1359,11 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         draw_text($image, $f(11), $serviceRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
     }
     imageline($image, $serviceX, $weatherY + $p(272), $serviceRight, $weatherY + $p(272), $grey);
-    $balanceLeft = $serviceCenter - $p(76); $balanceRight = $serviceCenter + $p(76);
-    draw_text($image, $f(12), $balanceLeft, $weatherY + $p(318), 'DeepSeek 公司', $black, 'center');
-    draw_text($image, $f(12), $balanceRight, $weatherY + $p(318), '阿里云账户', $black, 'center');
-    draw_text($image, $f(17), $balanceLeft, $weatherY + $p(380), balance_summary($deepseekAccount ?? []), $black, 'center');
-    draw_text($image, $f(17), $balanceRight, $weatherY + $p(380), isset($aliyunAccount['summary']) ? balance_summary($aliyunAccount) : '待配置', $black, 'center');
+    $deepseekBaseline = $weatherY + $p(318);
+    draw_service_icon($image, 'deepseek', $serviceCenter - $p(66), $deepseekBaseline - $p(8), $black, $white);
+    draw_text($image, $f(17), $serviceCenter - $p(17), $deepseekBaseline, 'DeepSeek', $black);
+    $balance = preg_replace('/^Balance\\s*/i', '', (string)($deepseekAccount['summary'] ?? '¥0.00'));
+    draw_text($image, $f(19), $serviceCenter, $weatherY + $p(380), $balance, $black, 'center');
 
     draw_text($image, $f(14), $margin + $p(16), $p(884), weather_advice($weather, $forecast), $grey);
 
@@ -1548,10 +1518,9 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     }
     draw_text($image, $p(15), $weatherX + $p(25), $weatherY + $p(420), weather_advice($weather, $forecast), $grey);
 
-    $claudeAccount = null; $deepseekAccount = null; $aliyunAccount = null;
+    $claudeAccount = null; $deepseekAccount = null;
     foreach (quota_accounts($state) as $account) {
-        if (($account['source'] ?? '') === 'company_deepseek') $deepseekAccount = $account;
-        elseif (($account['source'] ?? '') === 'company_aliyun') $aliyunAccount = $account;
+        if (($account['source'] ?? '') === 'deepseek') $deepseekAccount = $account;
         elseif (($account['source'] ?? '') === 'claude') $claudeAccount = $account;
     }
     $serviceX = $serviceRect[0]; $serviceRight = $serviceRect[2]; $serviceCenter = (int)(($serviceX + $serviceRight) / 2);
@@ -1577,11 +1546,14 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     }
     $serviceSeparatorY = $weatherY + $p(300);
     imageline($image, $serviceX, $serviceSeparatorY, $serviceRight, $serviceSeparatorY, $grey);
-    $balanceLeft = $serviceCenter - $p(115); $balanceRight = $serviceCenter + $p(115);
-    draw_text($image, $p(18), $balanceLeft, $weatherY + $p(354), 'DeepSeek 公司', $black, 'center');
-    draw_text($image, $p(18), $balanceRight, $weatherY + $p(354), '阿里云账户', $black, 'center');
-    draw_text($image, $p(22), $balanceLeft, $weatherY + $p(415), balance_summary($deepseekAccount ?? []), $black, 'center');
-    draw_text($image, $p(22), $balanceRight, $weatherY + $p(415), isset($aliyunAccount['summary']) ? balance_summary($aliyunAccount) : '待配置', $black, 'center');
+    $deepseekBaseline = $weatherY + $p(354);
+    $deepseekNameBox = imagettfbbox($p(20 * $fontScale), 0, FONT_FILE, 'DeepSeek');
+    $deepseekNameWidth = max($deepseekNameBox[0], $deepseekNameBox[2], $deepseekNameBox[4], $deepseekNameBox[6]) - min($deepseekNameBox[0], $deepseekNameBox[2], $deepseekNameBox[4], $deepseekNameBox[6]);
+    $deepseekGroupWidth = $p(78) + $deepseekNameWidth; $deepseekGroupLeft = $serviceCenter - (int)round($deepseekGroupWidth / 2);
+    draw_service_icon($image, 'deepseek', $deepseekGroupLeft + $p(30), $deepseekBaseline - $p(8), $black, $white, $p(3));
+    draw_text($image, $p(20), $deepseekGroupLeft + $p(78), $deepseekBaseline, 'DeepSeek', $black);
+    $balance = preg_replace('/^Balance\\s*/i', '', (string)($deepseekAccount['summary'] ?? '¥0.00'));
+    draw_text($image, $p(23), $serviceCenter, $weatherY + $p(415), $balance, $black, 'center');
 
     $quotaRows = codex_grok_quota_rows($state);
     $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3];

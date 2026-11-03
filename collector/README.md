@@ -18,14 +18,6 @@ DEEPSEEK_API_KEY=replace-with-your-api-key \
 python3 push_deepseek_balance.py
 ```
 
-Set `EINK_DASHBOARD_SOURCE=company_deepseek` and `EINK_DASHBOARD_ACCOUNT_NAME` when sending a company account separately from an existing DeepSeek source.
-
-## Alibaba Cloud account balance
-
-`push_aliyun_account_balance.py` queries the Alibaba Cloud BSS `QueryAccountBalance` operation through the official `aliyun` CLI and submits only the account currency and `AvailableAmount`. It needs a RAM AccessKey with read permission for `bssapi:QueryAccountBalance`, passed through `ALIBABA_CLOUD_ACCESS_KEY_ID` and `ALIBABA_CLOUD_ACCESS_KEY_SECRET`. A DashScope API Key does not provide account-level balance access.
-
-The CLI profile is ignored for this job. Keep the AccessKey in a root-managed mode-0600 environment file and load it through systemd; never put it in this repository or dashboard payload. `deploy/configure-company-aliyun-balance.py` provides a no-echo prompt that verifies the read-only request before writing that file.
-
 ## Claude Code
 
 Two independent options; use whichever fits.

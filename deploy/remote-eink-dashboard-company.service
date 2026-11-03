@@ -1,0 +1,22 @@
+[Unit]
+Description=Push company DeepSeek balance to Remote E-ink Dashboard
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=remote-eink-status
+Group=remote-eink-status
+EnvironmentFile=/etc/remote-eink-dashboard/company.env
+EnvironmentFile=/etc/usb-ai.env
+Environment=EINK_DASHBOARD_SOURCE=company_deepseek
+Environment="EINK_DASHBOARD_ACCOUNT_NAME=DeepSeek 公司"
+ExecStart=/usr/bin/python3.11 /usr/local/sbin/eink-dashboard-deepseek.py
+NoNewPrivileges=true
+PrivateDevices=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+
+[Install]
+WantedBy=multi-user.target

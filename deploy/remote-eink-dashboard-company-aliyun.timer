@@ -1,0 +1,12 @@
+[Unit]
+Description=Collect company Alibaba Cloud account balance every 15 minutes
+
+[Timer]
+OnBootSec=3min
+OnUnitActiveSec=15min
+AccuracySec=1min
+Persistent=true
+Unit=remote-eink-dashboard-company-aliyun.service
+
+[Install]
+WantedBy=multi-user.target

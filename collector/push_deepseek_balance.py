@@ -11,6 +11,7 @@ to the dashboard service or written to disk by this program.
 """
 import json
 import os
+import re
 import sys
 import urllib.error
 import urllib.request
@@ -57,7 +58,9 @@ def main() -> int:
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     dashboard_url = os.environ.get("EINK_DASHBOARD_URL", "").rstrip("/")
     ingest_token = os.environ.get("EINK_DASHBOARD_INGEST_TOKEN")
-    if not api_key or not dashboard_url or not ingest_token:
+    source = os.environ.get("EINK_DASHBOARD_SOURCE", "deepseek")
+    account_name = os.environ.get("EINK_DASHBOARD_ACCOUNT_NAME", "DeepSeek")
+    if not api_key or not dashboard_url or not ingest_token or not re.fullmatch(r"[a-z0-9_-]{1,32}", source) or not account_name.strip():
         print("Missing DeepSeek or dashboard environment variables.", file=sys.stderr)
         return 2
     try:
@@ -68,7 +71,7 @@ def main() -> int:
         _request_json(
             f"{dashboard_url}/v1/ingest/quota",
             {"Authorization": f"Bearer {ingest_token}", "Content-Type": "application/json"},
-            {"source": "deepseek", "accounts": [{"name": "DeepSeek", "summary": _summary(balance)}]},
+            {"source": source, "accounts": [{"name": account_name.strip()[:32], "summary": _summary(balance)}]},
         )
     except (OSError, TimeoutError, ValueError, json.JSONDecodeError, urllib.error.HTTPError, urllib.error.URLError):
         print("DeepSeek balance update failed.", file=sys.stderr)

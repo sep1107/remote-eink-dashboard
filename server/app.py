@@ -352,6 +352,12 @@ def create_app(config: Config | None = None) -> Flask:
     state = State(config.data_dir / "state.json")
     app = Flask(__name__)
 
+    @app.after_request
+    def prevent_indexing(response: Response) -> Response:
+        # This API-only renderer has no public HTML pages, including on errors.
+        response.headers["X-Robots-Tag"] = "noindex, nofollow"
+        return response
+
     def refresh_weather() -> None:
         snapshot = state.snapshot()
         if time.time() - float(snapshot.get("weather_updated_at") or 0) < 900:

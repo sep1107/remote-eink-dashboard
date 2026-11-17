@@ -565,21 +565,22 @@ function account_metric(array $account, string $key): ?array {
     return $clean;
 }
 
-function draw_balance_pool_panel($image, array $state, array $rect, int $fontSize, int $black, int $grey, int $white, bool $isRecorder = false): void {
+function draw_balance_pool_panel($image, array $state, array $rect, int $fontSize, int $black, int $grey, int $white, bool $isRecorder = false, int $headingExtra = 0): void {
     [$left, $top, $right, $bottom] = $rect;
     $width = $right - $left; $height = $bottom - $top; $middle = (int)(($left + $right) / 2);
     imageline($image, $middle, $top + 10, $middle, $bottom - 10, $grey);
     $fontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
-    $iconSize = (int)round($height * .26) + ($isRecorder ? 6 : 0);
+    $iconSize = (int)round($height * .26) + ($isRecorder ? 6 : 0) + $headingExtra;
+    $headingSize = $fontSize + $headingExtra;
     foreach (['deepseek', 'grok2api'] as $index => $source) {
         $center = (int)round($left + ($index + .5) * $width / 2);
         $name = $source === 'deepseek' ? 'DeepSeek' : 'Grok';
-        $nameBox = imagettfbbox((int)round($fontSize * $fontScale), 0, FONT_FILE, $name);
+        $nameBox = imagettfbbox((int)round($headingSize * $fontScale), 0, FONT_FILE, $name);
         $nameWidth = $nameBox[2] - $nameBox[0];
         $groupLeft = (int)round($center - ($iconSize + 8 + $nameWidth) / 2);
         $baseline = (int)round($top + $height * .29);
-        draw_service_icon($image, $source, $groupLeft + (int)($iconSize / 2), $baseline - (int)round($fontSize * $fontScale * .35), $black, $white, $iconSize - ($source === 'deepseek' ? 60 : 76));
-        draw_text($image, $fontSize, $groupLeft + $iconSize + 8, $baseline, $name, $black);
+        draw_service_icon($image, $source, $groupLeft + (int)($iconSize / 2), $baseline - (int)round($headingSize * $fontScale * .35), $black, $white, $iconSize - ($source === 'deepseek' ? 60 : 76));
+        draw_text($image, $headingSize, $groupLeft + $iconSize + 8, $baseline, $name, $black);
         if ($source === 'deepseek') {
             $account = quota_source_account($state, 'deepseek');
             $balance = preg_replace('/^Balance\\s*/i', '', (string)($account['summary'] ?? '--'));
@@ -1213,7 +1214,7 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         $rowLine = $leftDividerY;
         if ($index < count($leftAccounts) - 1) imageline($image, $aiRect[0], $rowLine, $divider, $rowLine, $grey);
         if ($source === 'deepseek') {
-            draw_balance_pool_panel($image, $state, [$aiRect[0], $leftDividerY, $divider, $aiContentBottom], $p(20), $black, $grey, $white);
+            draw_balance_pool_panel($image, $state, [$aiRect[0], $leftDividerY, $divider, $aiContentBottom], $p(20), $black, $grey, $white, false, $p(5));
             continue;
         }
         draw_service_icon($image, $source, $leftAccountCenter - $p(74), $baseline - $p(8), $black, $white);
@@ -1598,7 +1599,7 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     }
     $serviceSeparatorY = $weatherY + $p(300);
     imageline($image, $serviceX, $serviceSeparatorY, $serviceRight, $serviceSeparatorY, $grey);
-    draw_balance_pool_panel($image, $state, [$serviceX, $serviceSeparatorY, $serviceRight, $serviceRect[3]], $p(17), $black, $grey, $white);
+    draw_balance_pool_panel($image, $state, [$serviceX, $serviceSeparatorY, $serviceRight, $serviceRect[3]], $p(17), $black, $grey, $white, false, $p(5));
 
     $quotaRows = codex_cursor_quota_rows($state);
     $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3];

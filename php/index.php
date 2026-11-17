@@ -570,7 +570,7 @@ function draw_balance_pool_panel($image, array $state, array $rect, int $fontSiz
     $width = $right - $left; $height = $bottom - $top; $middle = (int)(($left + $right) / 2);
     imageline($image, $middle, $top + 10, $middle, $bottom - 10, $grey);
     $fontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
-    $iconSize = (int)round($height * .26) + ($isRecorder ? 3 : 0);
+    $iconSize = (int)round($height * .26) + ($isRecorder ? 6 : 0);
     foreach (['deepseek', 'grok2api'] as $index => $source) {
         $center = (int)round($left + ($index + .5) * $width / 2);
         $name = $source === 'deepseek' ? 'DeepSeek' : 'Grok';
@@ -583,13 +583,22 @@ function draw_balance_pool_panel($image, array $state, array $rect, int $fontSiz
         if ($source === 'deepseek') {
             $account = quota_source_account($state, 'deepseek');
             $balance = preg_replace('/^Balance\\s*/i', '', (string)($account['summary'] ?? '--'));
-            draw_text($image, $fontSize + ($isRecorder ? 6 : 9), $center, (int)round($top + $height * .72), $balance, $black, 'center');
+            $balanceSize = $fontSize + ($isRecorder ? 6 : 12);
+            $balanceBox = imagettfbbox((int)round($balanceSize * $fontScale), 0, FONT_FILE, $balance);
+            $grokAccount = grok_quota_account($state);
+            $buildBox = imagettfbbox((int)round(($fontSize - 1) * $fontScale), 0, FONT_FILE, str_replace(' / ', '/', quota_count_label(account_metric($grokAccount, 'five_hour'))));
+            $webBox = imagettfbbox((int)round(($fontSize - 1) * $fontScale), 0, FONT_FILE, str_replace(' / ', '/', quota_count_label(account_metric($grokAccount, 'seven_day'))));
+            // Center the visible digits against both Grok count rows, not their baselines.
+            $countsTop = round($top + $height * .60) + min($buildBox[1], $buildBox[3], $buildBox[5], $buildBox[7]);
+            $countsBottom = round($top + $height * .85) + max($webBox[1], $webBox[3], $webBox[5], $webBox[7]);
+            $balanceOffset = (min($balanceBox[1], $balanceBox[3], $balanceBox[5], $balanceBox[7]) + max($balanceBox[1], $balanceBox[3], $balanceBox[5], $balanceBox[7])) / 2;
+            draw_text($image, $balanceSize, $center, (int)round(($countsTop + $countsBottom) / 2 - $balanceOffset), $balance, $black, 'center');
         } else {
             $account = grok_quota_account($state);
             foreach (['five_hour' => 'Build', 'seven_day' => 'Web'] as $key => $label) {
                 $count = str_replace(' / ', '/', quota_count_label(account_metric($account, $key)));
                 $y = (int)round($top + $height * ($key === 'five_hour' ? .60 : .85));
-                $padding = max(8, (int)round($width * .04));
+                $padding = $isRecorder ? 8 : max(8, (int)round($width * .04));
                 draw_text($image, $fontSize - 1, $middle + $padding, $y, $label, $black);
                 draw_text($image, $fontSize - 1, $right - $padding, $y, $count, $black, 'right');
             }
@@ -1071,7 +1080,7 @@ CSS;
     echo '<section class="hero"><span class="city">📍 ' . html_escape($city) . '</span><div class="now"><span class="emoji">' . iphone_weather_emoji($weather['code'] ?? null) . '</span><div><strong>' . $temperature . '<small>°C</small></strong><p>' . html_escape(weather_label($weather['code'] ?? null)) . '</p></div></div><div class="range">今日 ' . $low . '° / ' . $high . '°</div><div class="stats"><span>湿度<b>' . html_escape($weather['humidity'] ?? '--') . '%</b></span><span>风力<b>' . html_escape($wind === null ? '--' : $wind) . '级</b></span><span>空气质量<b>' . html_escape(air_quality_label($aqi)) . ' ' . html_escape($aqi ?? '--') . '</b></span><span>紫外线<b>' . html_escape($uvLevel) . '</b></span></div></section>';
     echo '<section class="section"><div class="section-head"><h2>未来天气</h2><span>' . html_escape($city) . '</span></div><div class="forecasts">' . $forecastHtml . '</div><div class="advice"><b>☂</b><span>' . html_escape(weather_advice($weather, $forecast)) . '</span></div></section>';
     echo $serverHtml;
-    echo '<section class="section ai"><div class="section-head ai-title"><h2>AI 余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . $cursorHtml . '<div class="service-pair">' . $deepseekHtml . $grokHtml . '</div>' . $codexHtml . '</section>';
+    echo '<section class="section ai"><div class="section-head ai-title"><h2>AI 余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . '<div class="service-pair">' . $deepseekHtml . $grokHtml . '</div>' . $codexHtml . $cursorHtml . '</section>';
     echo '<div class="footer">更新于 ' . html_escape(date('H:i', $now)) . ' · 设备电量 ' . html_escape($batteryText) . '</div></main><script>setInterval(function(){location.reload();},' . ($refreshMinutes * 60000) . ');document.addEventListener("visibilitychange",function(){if(!document.hidden)location.reload();});</script></body></html>';
     exit;
 }
@@ -1402,7 +1411,7 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
     }
     imageline($image, $serviceX, $weatherY + $p(272), $serviceRight, $weatherY + $p(272), $grey);
     $isRecorder = ($device['id'] ?? '') === 'sogou-s1';
-    draw_balance_pool_panel($image, $state, [$serviceX, $weatherY + $p(272), $serviceRight, $serviceRect[3]], $f($isRecorder ? 14 : 11), $black, $grey, $white, $isRecorder);
+    draw_balance_pool_panel($image, $state, [$serviceX, $weatherY + $p(272), $serviceRight, $serviceRect[3]], $f(11) + ($isRecorder ? 6 : 0), $black, $grey, $white, $isRecorder);
 
     draw_text($image, $f(14), $margin + $p(16), $p(884), weather_advice($weather, $forecast), $grey);
 

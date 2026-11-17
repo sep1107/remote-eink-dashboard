@@ -354,7 +354,7 @@ function weather_advice(array $weather, array $forecast): string {
 function quota_accounts(array $state): array {
     $quota = is_array($state['quota'] ?? null) ? $state['quota'] : [];
     $sources = is_array($quota['sources'] ?? null) ? $quota['sources'] : [];
-    $ordered = array_values(array_unique(array_merge(['claude', 'deepseek', 'codex', 'grok2api'], array_keys($sources))));
+    $ordered = array_values(array_unique(array_merge(['claude', 'deepseek', 'cursor', 'codex', 'grok2api'], array_keys($sources))));
     $accounts = [];
     $codexCount = 0;
     foreach ($ordered as $source) {
@@ -368,7 +368,7 @@ function quota_accounts(array $state): array {
             }
         }
     }
-    return array_slice($accounts, 0, 5);
+    return array_slice($accounts, 0, 6);
 }
 
 function quota_source_account(array $state, string $source): ?array {
@@ -392,12 +392,12 @@ function grok_quota_account(array $state): array {
     ];
 }
 
-function codex_grok_quota_rows(array $state): array {
+function codex_cursor_quota_rows(array $state): array {
     $rows = [];
     foreach (quota_accounts($state) as $account) {
         if (($account['source'] ?? '') === 'codex') $rows[] = $account;
     }
-    $rows[] = grok_quota_account($state);
+    $rows[] = quota_source_account($state, 'cursor') ?? ['source' => 'cursor', 'name' => 'Cursor', 'summary' => '暂未接入'];
     return $rows;
 }
 
@@ -539,13 +539,14 @@ function draw_weather_icon($image, int $x, int $y, int $size, $code, int $black,
 }
 
 function draw_service_icon($image, string $source, int $x, int $y, int $black, int $white, int $sizeOffset = 0): void {
-    $files = ['claude' => 'claudecode.png', 'deepseek' => 'deepseek.png', 'codex' => 'openai.png', 'grok2api' => 'grok.png'];
+    $files = ['claude' => 'claudecode.png', 'deepseek' => 'deepseek.png', 'codex' => 'openai.png', 'grok2api' => 'grok.png', 'cursor' => 'cursor.png'];
     $path = ICON_DIR . '/' . ($files[$source] ?? $files['codex']);
     $icon = is_readable($path) ? @imagecreatefrompng($path) : false;
     if ($icon !== false) {
-        $sizes = ['claude' => 68, 'deepseek' => 60, 'codex' => 80, 'grok2api' => 76];
+        $sizes = ['claude' => 68, 'deepseek' => 60, 'codex' => 80, 'grok2api' => 76, 'cursor' => 68];
         $size = max(1, ($sizes[$source] ?? 60) + $sizeOffset);
-        imagecopyresampled($image, $icon, $x - (int)($size / 2), $y - (int)($size / 2), 0, 0, $size, $size, imagesx($icon), imagesy($icon));
+        $iconWidth = $source === 'cursor' ? (int)round($size * imagesx($icon) / imagesy($icon)) : $size;
+        imagecopyresampled($image, $icon, $x - (int)($iconWidth / 2), $y - (int)($size / 2), 0, 0, $iconWidth, $size, imagesx($icon), imagesy($icon));
         imagedestroy($icon);
         return;
     }
@@ -562,6 +563,38 @@ function account_metric(array $account, string $key): ?array {
         $clean['available'] = max(0, min($clean['total'], (int)$metric['available']));
     }
     return $clean;
+}
+
+function draw_balance_pool_panel($image, array $state, array $rect, int $fontSize, int $black, int $grey, int $white): void {
+    [$left, $top, $right, $bottom] = $rect;
+    $width = $right - $left; $height = $bottom - $top; $middle = (int)(($left + $right) / 2);
+    imageline($image, $middle, $top + 10, $middle, $bottom - 10, $grey);
+    $fontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
+    $iconSize = (int)round($height * .26);
+    foreach (['deepseek', 'grok2api'] as $index => $source) {
+        $center = (int)round($left + ($index + .5) * $width / 2);
+        $name = $source === 'deepseek' ? 'DeepSeek' : 'Grok';
+        $nameBox = imagettfbbox((int)round($fontSize * $fontScale), 0, FONT_FILE, $name);
+        $nameWidth = $nameBox[2] - $nameBox[0];
+        $groupLeft = (int)round($center - ($iconSize + 8 + $nameWidth) / 2);
+        $baseline = (int)round($top + $height * .29);
+        draw_service_icon($image, $source, $groupLeft + (int)($iconSize / 2), $baseline - (int)round($fontSize * $fontScale * .35), $black, $white, $iconSize - ($source === 'deepseek' ? 60 : 76));
+        draw_text($image, $fontSize, $groupLeft + $iconSize + 8, $baseline, $name, $black);
+        if ($source === 'deepseek') {
+            $account = quota_source_account($state, 'deepseek');
+            $balance = preg_replace('/^Balance\\s*/i', '', (string)($account['summary'] ?? '--'));
+            draw_text($image, $fontSize + 6, $center, (int)round($top + $height * .72), $balance, $black, 'center');
+        } else {
+            $account = grok_quota_account($state);
+            foreach (['five_hour' => 'Build', 'seven_day' => 'Web'] as $key => $label) {
+                $count = str_replace(' / ', '/', quota_count_label(account_metric($account, $key)));
+                $y = (int)round($top + $height * ($key === 'five_hour' ? .60 : .85));
+                $padding = max(8, (int)round($width * .04));
+                draw_text($image, $fontSize - 1, $middle + $padding, $y, $label, $black);
+                draw_text($image, $fontSize - 1, $right - $padding, $y, $count, $black, 'right');
+            }
+        }
+    }
 }
 
 function codex_display_name(string $name): string {
@@ -973,6 +1006,7 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     $claudeHtml = '';
     $deepseekHtml = '';
     $codexHtml = '';
+    $cursorHtml = '';
     foreach (quota_accounts($state) as $account) {
         $source = (string)($account['source'] ?? '');
         if ($source === 'claude') {
@@ -989,6 +1023,13 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
             $deepseekHtml .= '<article class="ai-account deepseek">'
                 . '<div class="account-heading"><img src="/assets/deepseek.png" alt=""><div><b>DeepSeek</b><span>官方 API 余额</span></div></div>'
                 . '<strong class="balance">' . html_escape($balance) . '</strong>'
+                . '</article>';
+            continue;
+        }
+        if ($source === 'cursor') {
+            $cursorHtml .= '<article class="ai-account cursor">'
+                . '<div class="account-heading"><picture><source media="(prefers-color-scheme:dark)" srcset="/assets/cursor-dark.png"><img src="/assets/cursor.png" alt=""></picture><div><b>Cursor</b><span>订阅额度</span></div></div>'
+                . iphone_metric_html('7D', account_metric($account, 'included_usage'), 605100)
                 . '</article>';
             continue;
         }
@@ -1009,6 +1050,7 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
         . iphone_metric_html('Build', $grokBuild, 0, quota_count_label($grokBuild))
         . iphone_metric_html('Web', $grokWeb, 0, quota_count_label($grokWeb))
         . '</article>';
+    if ($cursorHtml === '') $cursorHtml = '<article class="ai-account cursor empty"><b>Cursor</b><span>暂未接入</span></article>';
     if ($claudeHtml === '') $claudeHtml = '<article class="ai-account claude empty"><b>Claude Code</b><span>暂未接入</span></article>';
     if ($deepseekHtml === '') $deepseekHtml = '<article class="ai-account deepseek empty"><b>DeepSeek</b><span>暂未接入</span></article>';
     if ($codexHtml === '') $codexHtml = '<article class="ai-account codex empty"><b>Codex</b><span>暂未接入</span></article>';
@@ -1022,14 +1064,14 @@ function render_iphone_viewer(array $device, string $id, string $token, array $c
     header('Cache-Control: no-store, max-age=0');
     echo '<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#13223f"><title>今日看板</title><style>';
     echo <<<'CSS'
-:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;background:#eaf0fb;color:#14213d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 86% 0,#d7e8ff 0,transparent 27rem),linear-gradient(160deg,#eef4ff,#edf0f8 52%,#e5edff);min-height:100svh}.shell{width:min(100%,430px);min-height:100svh;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 28px)}.topline{display:flex;justify-content:space-between;align-items:center;margin:0 3px 16px;color:#53647e;font-size:12px;font-weight:650;letter-spacing:.02em}.topline b{color:#14213d;font-size:14px}.hero{position:relative;overflow:hidden;border-radius:28px;padding:23px 22px 20px;background:linear-gradient(135deg,#172847,#253f71 57%,#3976a9);color:#fff;box-shadow:0 18px 34px #263d6b35}.hero:after{content:"";position:absolute;width:180px;height:180px;right:-65px;top:-70px;border-radius:50%;background:#73c6e6;opacity:.24}.city{position:relative;z-index:1;display:inline-flex;gap:7px;align-items:center;padding:6px 10px;border-radius:99px;background:#ffffff20;color:#e2f3ff;font-size:12px}.now{position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:14px 0 9px}.now .emoji{font-size:53px;line-height:1}.now strong{font-size:52px;letter-spacing:-.06em;line-height:.9}.now strong small{font-size:17px;letter-spacing:0;margin-left:3px}.now p{margin:5px 0 0;font-size:15px;font-weight:650}.range{position:relative;z-index:1;color:#d1e5ff;font-size:13px}.stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:19px}.stats span{padding:10px 8px;border-radius:14px;background:#ffffff17;color:#d4e4ff;font-size:11px;line-height:1.45}.stats b{display:block;color:#fff;font-size:15px}.section{margin-top:16px;background:#fff;border:1px solid #dce5f2;border-radius:24px;box-shadow:0 8px 20px #1b315a0b}.section-head{display:flex;justify-content:space-between;align-items:baseline;padding:18px 18px 0}.section-head h2{margin:0;font-size:17px;letter-spacing:-.02em}.section-head span{font-size:12px;color:#74839b}.forecasts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px 16px 17px}.forecast-card{padding:12px 10px;border-radius:17px;background:#f2f6fc;color:#5a6b83}.forecast-card>span{font-size:12px;font-weight:650}.forecast-card b{display:block;margin:5px 0 4px;font-size:27px;line-height:1}.forecast-card strong{display:block;color:#1d2e4a;font-size:14px}.forecast-card small{display:block;margin-top:4px;font-size:11px}.advice{display:flex;gap:10px;align-items:flex-start;margin:0 16px 17px;padding:12px 13px;border-radius:14px;background:#edf7f5;color:#3c6f69;font-size:12px;line-height:1.55}.advice b{font-size:15px;line-height:1}.server{overflow:hidden}.status-pill{display:inline-flex;gap:5px;align-items:center;font-weight:650}.status-pill i,.container-list li>i{width:7px;height:7px;border-radius:50%;background:#94a3b8}.status-pill.healthy{color:#188466}.status-pill.healthy i,.container-list .running{background:#25b68b}.status-pill.waiting{color:#a8741b}.server-meta{display:flex;justify-content:space-between;gap:12px;padding:12px 17px 2px;color:#718199;font-size:11px}.server-metrics{display:grid;gap:11px;padding:12px 17px 15px}.server-metric>div{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:12px}.server-metric span{color:#687991}.server-metric b{color:#2a3c58;font-size:12px}.server-metric>i{display:block;height:7px;border-radius:99px;overflow:hidden;background:#e6edf6}.server-metric em{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4d77c5,#7ac8b3)}.docker-head{display:flex;justify-content:space-between;align-items:center;padding:13px 17px 9px;border-top:1px solid #edf1f7}.docker-head b{font-size:13px}.docker-head span{color:#76879e;font-size:11px}.container-list{margin:0;padding:0 17px 14px;list-style:none}.container-list li{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid #eff3f8}.container-list li>i{width:7px;height:7px}.container-list .stopped{background:#e3a23c}.ai{padding-bottom:4px}.ai-title{padding-bottom:12px}.ai-title span{color:#647492}.ai-account{margin:0 14px 12px;padding:14px;border:1px solid #e2eaf4;border-radius:18px;background:#fbfcff}.account-heading{display:flex;align-items:center;gap:10px;margin-bottom:12px}.account-heading img{width:29px;height:29px;object-fit:contain}.account-heading b,.empty b{display:block;font-size:15px}.account-heading span,.empty span{display:block;margin-top:2px;color:#7f8da3;font-size:11px}.metric-row{display:grid;grid-template-columns:26px minmax(0,1fr) 35px 67px;gap:7px;align-items:center;margin-top:8px}.metric-label,.metric-row small{font-size:11px;color:#718199}.metric-row strong{font-size:12px;text-align:right;color:#30425e}.metric-row small{text-align:right;white-space:nowrap}.metric-track{height:7px;border-radius:99px;overflow:hidden;background:#e5ebf4}.metric-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#3c67b9,#79b9cb)}.claude .metric-track i{background:linear-gradient(90deg,#d67347,#f0aa68)}.deepseek{display:flex;align-items:center;justify-content:space-between}.deepseek .account-heading{margin:0}.balance{color:#145b7e;font-size:20px;letter-spacing:-.03em}.empty{display:flex;justify-content:space-between;align-items:center}.footer{padding:5px 3px 0;text-align:center;color:#8391a5;font-size:11px}@media (min-width:700px){body{padding:24px}.shell{border-radius:34px;box-shadow:0 24px 60px #26385b25;min-height:calc(100svh - 48px)}}@media (prefers-color-scheme:dark){:root{color-scheme:dark;background:#101725;color:#edf3ff}body{background:radial-gradient(circle at 86% 0,#284b78 0,transparent 27rem),#101725}.section{background:#172136;border-color:#2a3852;box-shadow:none}.section-head h2,.forecast-card strong,.server-metric b,.container-list span{color:#e7efff}.section-head span,.server-meta,.docker-head span,.container-list small{color:#9eacc3}.forecast-card{background:#202d44;color:#aebbd0}.advice{background:#173438;color:#b8e1d9}.server-metric>i{background:#2b3850}.docker-head,.container-list li{border-color:#293851}.ai-account{background:#1a273d;border-color:#2d3b53}.metric-track{background:#2b3850}.metric-row strong{color:#dce7fb}.footer{color:#8795ae}}
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Helvetica Neue",sans-serif;background:#eaf0fb;color:#14213d}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 86% 0,#d7e8ff 0,transparent 27rem),linear-gradient(160deg,#eef4ff,#edf0f8 52%,#e5edff);min-height:100svh}.shell{width:min(100%,430px);min-height:100svh;margin:0 auto;padding:calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 28px)}.topline{display:flex;justify-content:space-between;align-items:center;margin:0 3px 16px;color:#53647e;font-size:12px;font-weight:650;letter-spacing:.02em}.topline b{color:#14213d;font-size:14px}.hero{position:relative;overflow:hidden;border-radius:28px;padding:23px 22px 20px;background:linear-gradient(135deg,#172847,#253f71 57%,#3976a9);color:#fff;box-shadow:0 18px 34px #263d6b35}.hero:after{content:"";position:absolute;width:180px;height:180px;right:-65px;top:-70px;border-radius:50%;background:#73c6e6;opacity:.24}.city{position:relative;z-index:1;display:inline-flex;gap:7px;align-items:center;padding:6px 10px;border-radius:99px;background:#ffffff20;color:#e2f3ff;font-size:12px}.now{position:relative;z-index:1;display:flex;align-items:center;gap:14px;margin:14px 0 9px}.now .emoji{font-size:53px;line-height:1}.now strong{font-size:52px;letter-spacing:-.06em;line-height:.9}.now strong small{font-size:17px;letter-spacing:0;margin-left:3px}.now p{margin:5px 0 0;font-size:15px;font-weight:650}.range{position:relative;z-index:1;color:#d1e5ff;font-size:13px}.stats{position:relative;z-index:1;display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:19px}.stats span{padding:10px 8px;border-radius:14px;background:#ffffff17;color:#d4e4ff;font-size:11px;line-height:1.45}.stats b{display:block;color:#fff;font-size:15px}.section{margin-top:16px;background:#fff;border:1px solid #dce5f2;border-radius:24px;box-shadow:0 8px 20px #1b315a0b}.section-head{display:flex;justify-content:space-between;align-items:baseline;padding:18px 18px 0}.section-head h2{margin:0;font-size:17px;letter-spacing:-.02em}.section-head span{font-size:12px;color:#74839b}.forecasts{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;padding:14px 16px 17px}.forecast-card{padding:12px 10px;border-radius:17px;background:#f2f6fc;color:#5a6b83}.forecast-card>span{font-size:12px;font-weight:650}.forecast-card b{display:block;margin:5px 0 4px;font-size:27px;line-height:1}.forecast-card strong{display:block;color:#1d2e4a;font-size:14px}.forecast-card small{display:block;margin-top:4px;font-size:11px}.advice{display:flex;gap:10px;align-items:flex-start;margin:0 16px 17px;padding:12px 13px;border-radius:14px;background:#edf7f5;color:#3c6f69;font-size:12px;line-height:1.55}.advice b{font-size:15px;line-height:1}.server{overflow:hidden}.status-pill{display:inline-flex;gap:5px;align-items:center;font-weight:650}.status-pill i,.container-list li>i{width:7px;height:7px;border-radius:50%;background:#94a3b8}.status-pill.healthy{color:#188466}.status-pill.healthy i,.container-list .running{background:#25b68b}.status-pill.waiting{color:#a8741b}.server-meta{display:flex;justify-content:space-between;gap:12px;padding:12px 17px 2px;color:#718199;font-size:11px}.server-metrics{display:grid;gap:11px;padding:12px 17px 15px}.server-metric>div{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;font-size:12px}.server-metric span{color:#687991}.server-metric b{color:#2a3c58;font-size:12px}.server-metric>i{display:block;height:7px;border-radius:99px;overflow:hidden;background:#e6edf6}.server-metric em{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#4d77c5,#7ac8b3)}.docker-head{display:flex;justify-content:space-between;align-items:center;padding:13px 17px 9px;border-top:1px solid #edf1f7}.docker-head b{font-size:13px}.docker-head span{color:#76879e;font-size:11px}.container-list{margin:0;padding:0 17px 14px;list-style:none}.container-list li{display:grid;grid-template-columns:8px minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 0;border-top:1px solid #eff3f8}.container-list li>i{width:7px;height:7px}.container-list .stopped{background:#e3a23c}.ai{padding-bottom:4px}.ai-title{padding-bottom:12px}.ai-title span{color:#647492}.ai-account{margin:0 14px 12px;padding:14px;border:1px solid #e2eaf4;border-radius:18px;background:#fbfcff}.account-heading{display:flex;align-items:center;gap:10px;margin-bottom:12px}.account-heading img{width:29px;height:29px;object-fit:contain}.account-heading b,.empty b{display:block;font-size:15px}.account-heading span,.empty span{display:block;margin-top:2px;color:#7f8da3;font-size:11px}.metric-row{display:grid;grid-template-columns:26px minmax(0,1fr) 35px 67px;gap:7px;align-items:center;margin-top:8px}.metric-label,.metric-row small{font-size:11px;color:#718199}.metric-row strong{font-size:12px;text-align:right;color:#30425e}.metric-row small{text-align:right;white-space:nowrap}.metric-track{height:7px;border-radius:99px;overflow:hidden;background:#e5ebf4}.metric-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,#3c67b9,#79b9cb)}.claude .metric-track i{background:linear-gradient(90deg,#d67347,#f0aa68)}.deepseek{display:flex;align-items:center;justify-content:space-between}.deepseek .account-heading{margin:0}.balance{color:#145b7e;font-size:23px;letter-spacing:-.03em}.empty{display:flex;justify-content:space-between;align-items:center}.footer{padding:5px 3px 0;text-align:center;color:#8391a5;font-size:11px}@media (min-width:700px){body{padding:24px}.shell{border-radius:34px;box-shadow:0 24px 60px #26385b25;min-height:calc(100svh - 48px)}}@media (prefers-color-scheme:dark){:root{color-scheme:dark;background:#101725;color:#edf3ff}body{background:radial-gradient(circle at 86% 0,#284b78 0,transparent 27rem),#101725}.section{background:#172136;border-color:#2a3852;box-shadow:none}.section-head h2,.forecast-card strong,.server-metric b,.container-list span{color:#e7efff}.section-head span,.server-meta,.docker-head span,.container-list small{color:#9eacc3}.forecast-card{background:#202d44;color:#aebbd0}.advice{background:#173438;color:#b8e1d9}.server-metric>i{background:#2b3850}.docker-head,.container-list li{border-color:#293851}.ai-account{background:#1a273d;border-color:#2d3b53}.metric-track{background:#2b3850}.metric-row strong{color:#dce7fb}.footer{color:#8795ae}}
 CSS;
     echo '</style></head><body><main class="shell">';
     echo '<div class="topline"><b>' . html_escape(date('Y年n月j日', $now)) . '</b><span>' . html_escape($lunar['text'] ?? '农历 --') . '</span><span>刷新 ' . $refreshMinutes . ' 分钟</span></div>';
     echo '<section class="hero"><span class="city">📍 ' . html_escape($city) . '</span><div class="now"><span class="emoji">' . iphone_weather_emoji($weather['code'] ?? null) . '</span><div><strong>' . $temperature . '<small>°C</small></strong><p>' . html_escape(weather_label($weather['code'] ?? null)) . '</p></div></div><div class="range">今日 ' . $low . '° / ' . $high . '°</div><div class="stats"><span>湿度<b>' . html_escape($weather['humidity'] ?? '--') . '%</b></span><span>风力<b>' . html_escape($wind === null ? '--' : $wind) . '级</b></span><span>空气质量<b>' . html_escape(air_quality_label($aqi)) . ' ' . html_escape($aqi ?? '--') . '</b></span><span>紫外线<b>' . html_escape($uvLevel) . '</b></span></div></section>';
     echo '<section class="section"><div class="section-head"><h2>未来天气</h2><span>' . html_escape($city) . '</span></div><div class="forecasts">' . $forecastHtml . '</div><div class="advice"><b>☂</b><span>' . html_escape(weather_advice($weather, $forecast)) . '</span></div></section>';
     echo $serverHtml;
-    echo '<section class="section ai"><div class="section-head ai-title"><h2>AI 余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . $deepseekHtml . $codexHtml . $grokHtml . '</section>';
+    echo '<section class="section ai"><div class="section-head ai-title"><h2>AI 余额</h2><span>且用且珍惜 ^_^</span></div>' . $claudeHtml . $cursorHtml . $deepseekHtml . $codexHtml . $grokHtml . '</section>';
     echo '<div class="footer">更新于 ' . html_escape(date('H:i', $now)) . ' · 设备电量 ' . html_escape($batteryText) . '</div></main><script>setInterval(function(){location.reload();},' . ($refreshMinutes * 60000) . ');document.addEventListener("visibilitychange",function(){if(!document.hidden)location.reload();});</script></body></html>';
     exit;
 }
@@ -1161,17 +1203,12 @@ function render_landscape_frame(array $device, array $state, array $config, int 
         $baseline = $source === 'claude' ? $aiContentTop + $p(54) : $leftDividerY + $p(76);
         $rowLine = $leftDividerY;
         if ($index < count($leftAccounts) - 1) imageline($image, $aiRect[0], $rowLine, $divider, $rowLine, $grey);
-        $serviceIconX = $leftAccountCenter - $p(74);
-        $serviceNameX = $leftAccountCenter - $p(18);
-        $identityBaseline = $source === 'deepseek' ? $baseline - $p(5) : $baseline;
-        draw_service_icon($image, $source, $serviceIconX, $identityBaseline - $p(8), $black, $white);
-        $name = $source === 'claude' ? 'Claude Code' : 'DeepSeek';
-        draw_text($image, $p(21), $serviceNameX, $identityBaseline, $name, $black);
         if ($source === 'deepseek') {
-            $balance = preg_replace('/^Balance\\s*/i', '', (string)$account['summary']);
-            draw_text($image, $p(27), $leftAccountCenter, $baseline + $p(58), $balance, $black, 'center');
+            draw_balance_pool_panel($image, $state, [$aiRect[0], $leftDividerY, $divider, $aiContentBottom], $p(20), $black, $grey, $white);
             continue;
         }
+        draw_service_icon($image, $source, $leftAccountCenter - $p(74), $baseline - $p(8), $black, $white);
+        draw_text($image, $p(21), $leftAccountCenter - $p(18), $baseline, 'Claude Code', $black);
         $claudeMetrics = [
             ['5H', account_metric($account, 'five_hour') ?? ['used' => 0]],
             ['7D', account_metric($account, 'seven_day') ?? ['used' => 0]],
@@ -1188,44 +1225,49 @@ function render_landscape_frame(array $device, array $state, array $config, int 
             draw_text($image, $p(14), $divider - $p(20), $metricBaseline + $p(29), '重置', $grey, 'right');
         }
     }
-    $quotaRows = codex_grok_quota_rows($state);
-    $codexRowHeight = ($aiContentBottom - $aiContentTop) / max(1, count($quotaRows));
+    $quotaRows = codex_cursor_quota_rows($state);
+    $codexRowHeight = ($aiContentBottom - $aiContentTop) / max(1, count($quotaRows) * 2 - 1);
     $codexShift = $p(34);
     foreach ($quotaRows as $index => $account) {
-        $rowCenter = (int)round($aiContentTop + ($index + .5) * $codexRowHeight); $baseline = $rowCenter - $p(5);
-        $source = (string)($account['source'] ?? 'codex'); $isGrok = $source === 'grok2api';
+        $rowCenter = (int)round($aiContentTop + ($index * 2 + ($index === count($quotaRows) - 1 ? .5 : 1)) * $codexRowHeight); $baseline = $rowCenter - $p(5);
+        if (($account['source'] ?? '') === 'cursor') {
+            $metric = account_metric($account, 'included_usage');
+            $metricBaseline = $rowCenter - $p(15);
+            $progressX = $divider + $p(300) + $codexShift;
+            draw_service_icon($image, 'cursor', $divider + $p(28) + $codexShift, $baseline + $p(3), $black, $white, 54 - 68);
+            draw_text($image, $p(21), $divider + $p(68) + $codexShift, $baseline, 'Cursor', $black);
+            draw_text($image, $p(14), $progressX, $metricBaseline, '7D', $grey);
+            draw_progress($image, $progressX, $metricBaseline + $p(10), $p(180), $p(19), $metric['used'] ?? null, $black, $grey, $white);
+            draw_text($image, $p(19), $progressX + $p(195), $metricBaseline + $p(29), $metric ? $metric['used'] . '%' : '--', $black);
+            draw_text($image, $p(19), $aiRect[2] - $p(20), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, 605100), $black, 'right');
+            draw_text($image, $p(14), $aiRect[2] - $p(20), $metricBaseline + $p(29), '重置', $grey, 'right');
+            continue;
+        }
         if ($index < count($quotaRows) - 1) {
-            $rowBottom = (int)round($aiContentTop + ($index + 1) * $codexRowHeight);
+            $rowBottom = (int)round($aiContentTop + ($index + 1) * 2 * $codexRowHeight);
             imageline($image, $divider + $p(18), $rowBottom, $aiRect[2] - $p(18), $rowBottom, $light);
         }
-        draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $divider + $p(28) + $codexShift, $baseline + $p(3), $black, $white, $isGrok ? $p(76) - 76 : 0);
+        draw_service_icon($image, 'codex', $divider + $p(28) + $codexShift, $baseline + $p(3), $black, $white, 0);
         $codexName = quota_display_name($account);
-        if (!$isGrok && $codexName === 'Codex 1') $codexName = 'Codex S';
-        elseif (!$isGrok && $codexName === 'Codex 2') $codexName = 'Codex C';
+        if ($codexName === 'Codex 1') $codexName = 'Codex S';
+        elseif ($codexName === 'Codex 2') $codexName = 'Codex C';
         $codexNameX = $divider + $p(68) + $codexShift;
         draw_text($image, $p(21), $codexNameX, $baseline, $codexName, $black);
         $codexNameFontSize = max(1, (int)round($p(21) * (float)($GLOBALS['dashboard_font_scale'] ?? 1)));
         $codexNameBox = imagettfbbox($codexNameFontSize, 0, FONT_FILE, $codexName);
         $codexNameWidth = max($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]) - min($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]);
-        draw_text($image, $p(19), $isGrok ? $codexNameX : $codexNameX + $codexNameWidth, $baseline + $p(30), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
+        draw_text($image, $p(19), $codexNameX + $codexNameWidth, $baseline + $p(30), (string)($account['plan'] ?? '—'), $grey, 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? [];
         $sevenDayMetric = account_metric($account, 'seven_day') ?? [];
         $codexProgressX = $divider + $p(300) + $codexShift;
-        $metricRows = $isGrok
-            ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+        $metricRows = [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p($metricIndex === 0 ? -50 : 13) + ($index === 0 ? 0 : $p(18));
             draw_text($image, $p(14), $codexProgressX, $metricBaseline, $label, $grey);
             draw_progress($image, $codexProgressX, $metricBaseline + $p(10), $p(180), $p(19), $used, $black, $grey, $white);
             draw_text($image, $p(19), $codexProgressX + $p(195), $metricBaseline + $p(29), $used === null ? '--' : $used . '%', $black);
-            if ($isGrok) {
-                draw_text($image, $p(19), $aiRect[2] - $p(20), $metricBaseline, quota_count_label($metric), $black, 'right');
-                draw_text($image, $p(14), $aiRect[2] - $p(20), $metricBaseline + $p(29), '可用', $grey, 'right');
-            } else {
-                draw_text($image, $p(19), $aiRect[2] - $p(20), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
-                draw_text($image, $p(14), $aiRect[2] - $p(20), $metricBaseline + $p(29), '重置', $grey, 'right');
-            }
+            draw_text($image, $p(19), $aiRect[2] - $p(20), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
+            draw_text($image, $p(14), $aiRect[2] - $p(20), $metricBaseline + $p(29), '重置', $grey, 'right');
         }
     }
     header('Content-Type: image/png'); header('Cache-Control: no-store, max-age=0');
@@ -1359,46 +1401,46 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         draw_text($image, $f(11), $serviceRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
     }
     imageline($image, $serviceX, $weatherY + $p(272), $serviceRight, $weatherY + $p(272), $grey);
-    $deepseekBaseline = $weatherY + $p(318);
-    draw_service_icon($image, 'deepseek', $serviceCenter - $p(66), $deepseekBaseline - $p(8), $black, $white);
-    draw_text($image, $f(17), $serviceCenter - $p(17), $deepseekBaseline, 'DeepSeek', $black);
-    $balance = preg_replace('/^Balance\\s*/i', '', (string)($deepseekAccount['summary'] ?? '¥0.00'));
-    draw_text($image, $f(19), $serviceCenter, $weatherY + $p(380), $balance, $black, 'center');
+    draw_balance_pool_panel($image, $state, [$serviceX, $weatherY + $p(272), $serviceRight, $serviceRect[3]], $f(11), $black, $grey, $white);
 
     draw_text($image, $f(14), $margin + $p(16), $p(884), weather_advice($weather, $forecast), $grey);
 
-    $quotaRows = codex_grok_quota_rows($state);
-    $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3]; $codexRowHeight = ($codexBottom - $codexY) / max(1, count($quotaRows));
+    $quotaRows = codex_cursor_quota_rows($state);
+    $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3]; $codexRowHeight = ($codexBottom - $codexY) / max(1, count($quotaRows) * 2 - 1);
     foreach ($quotaRows as $index => $account) {
-        $rowTop = (int)round($codexY + $index * $codexRowHeight); $rowCenter = (int)round($rowTop + $codexRowHeight / 2);
-        if ($index < count($quotaRows) - 1) imageline($image, $codexX + $p(12), (int)round($rowTop + $codexRowHeight), $codexRight - $p(12), (int)round($rowTop + $codexRowHeight), $light);
-        $source = (string)($account['source'] ?? 'codex');
-        $isGrok = $source === 'grok2api';
-        draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $codexX + $p(58), $rowCenter - $p(7), $black, $white);
+        $rowTop = (int)round($codexY + $index * 2 * $codexRowHeight); $rowCenter = (int)round($rowTop + $codexRowHeight * ($index === count($quotaRows) - 1 ? .5 : 1));
+        if ($index < count($quotaRows) - 1) imageline($image, $codexX + $p(12), (int)round($rowTop + 2 * $codexRowHeight), $codexRight - $p(12), (int)round($rowTop + 2 * $codexRowHeight), $light);
+        if (($account['source'] ?? '') === 'cursor') {
+            $metric = account_metric($account, 'included_usage');
+            $metricBaseline = $rowCenter - $p(15);
+            $progressX = $codexX + $p(235);
+            draw_service_icon($image, 'cursor', $codexX + $p(58), $rowCenter - $p(7), $black, $white, 54 - 68);
+            draw_text($image, $f(17), $codexX + $p(105), $rowCenter, 'Cursor', $black);
+            draw_text($image, $f(11), $progressX, $metricBaseline, '7D', $grey);
+            draw_progress($image, $progressX, $metricBaseline + $p(10), $p(195), $p(16), $metric['used'] ?? null, $black, $grey, $white);
+            draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $metric ? $metric['used'] . '%' : '--', $black);
+            draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, 605100), $black, 'right');
+            draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
+            continue;
+        }
+        draw_service_icon($image, 'codex', $codexX + $p(58), $rowCenter - $p(7), $black, $white);
         $codexName = quota_display_name($account);
-        if (!$isGrok && $codexName === 'Codex 1') $codexName = 'Codex S';
-        elseif (!$isGrok && $codexName === 'Codex 2') $codexName = 'Codex C';
+        if ($codexName === 'Codex 1') $codexName = 'Codex S';
+        elseif ($codexName === 'Codex 2') $codexName = 'Codex C';
         $codexNameX = $codexX + $p(105);
         draw_text($image, $f(17), $codexNameX, $rowCenter, $codexName, $black);
         $codexNameBox = imagettfbbox($f(17), 0, FONT_FILE, $codexName);
         $codexNameWidth = max($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]) - min($codexNameBox[0], $codexNameBox[2], $codexNameBox[4], $codexNameBox[6]);
-        draw_text($image, $f(14), $isGrok ? $codexNameX : $codexNameX + $codexNameWidth, $rowCenter + $p(29), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
+        draw_text($image, $f(14), $codexNameX + $codexNameWidth, $rowCenter + $p(29), (string)($account['plan'] ?? '—'), $grey, 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? []; $progressX = $codexX + $p(235);
-        $metricRows = $isGrok
-            ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+        $metricRows = [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p($metricIndex === 0 ? -41 : 24);
             draw_text($image, $f(11), $progressX, $metricBaseline, $label, $grey);
             draw_progress($image, $progressX, $metricBaseline + $p(10), $p(195), $p(16), $used, $black, $grey, $white);
             draw_text($image, $f(15), $progressX + $p(207), $metricBaseline + $p(30), $used === null ? '--' : $used . '%', $black);
-            if ($isGrok) {
-                draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, quota_count_label($metric), $black, 'right');
-                draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '可用', $grey, 'right');
-            } else {
-                draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
-                draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
-            }
+            draw_text($image, $f(15), $codexRight - $p(12), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
+            draw_text($image, $f(11), $codexRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
         }
     }
     header('Content-Type: image/png'); header('Cache-Control: no-store, max-age=0');
@@ -1546,49 +1588,47 @@ function render_portrait_frame(array $device, array $state, array $config, int $
     }
     $serviceSeparatorY = $weatherY + $p(300);
     imageline($image, $serviceX, $serviceSeparatorY, $serviceRight, $serviceSeparatorY, $grey);
-    $deepseekBaseline = $weatherY + $p(354);
-    $deepseekNameBox = imagettfbbox($p(20 * $fontScale), 0, FONT_FILE, 'DeepSeek');
-    $deepseekNameWidth = max($deepseekNameBox[0], $deepseekNameBox[2], $deepseekNameBox[4], $deepseekNameBox[6]) - min($deepseekNameBox[0], $deepseekNameBox[2], $deepseekNameBox[4], $deepseekNameBox[6]);
-    $deepseekGroupWidth = $p(78) + $deepseekNameWidth; $deepseekGroupLeft = $serviceCenter - (int)round($deepseekGroupWidth / 2);
-    draw_service_icon($image, 'deepseek', $deepseekGroupLeft + $p(30), $deepseekBaseline - $p(8), $black, $white, $p(3));
-    draw_text($image, $p(20), $deepseekGroupLeft + $p(78), $deepseekBaseline, 'DeepSeek', $black);
-    $balance = preg_replace('/^Balance\\s*/i', '', (string)($deepseekAccount['summary'] ?? '¥0.00'));
-    draw_text($image, $p(23), $serviceCenter, $weatherY + $p(415), $balance, $black, 'center');
+    draw_balance_pool_panel($image, $state, [$serviceX, $serviceSeparatorY, $serviceRight, $serviceRect[3]], $p(17), $black, $grey, $white);
 
-    $quotaRows = codex_grok_quota_rows($state);
+    $quotaRows = codex_cursor_quota_rows($state);
     $codexX = $codexRect[0]; $codexY = $codexRect[1]; $codexRight = $codexRect[2]; $codexBottom = $codexRect[3];
-    $codexRowHeight = ($codexBottom - $codexY) / max(1, count($quotaRows));
+    $codexRowHeight = ($codexBottom - $codexY) / max(1, count($quotaRows) * 2 - 1);
     foreach ($quotaRows as $index => $account) {
-        $rowTop = (int)round($codexY + $index * $codexRowHeight); $rowCenter = (int)round($rowTop + $codexRowHeight / 2);
-        if ($index < count($quotaRows) - 1) imageline($image, $codexX + $p(18), (int)round($rowTop + $codexRowHeight), $codexRight - $p(18), (int)round($rowTop + $codexRowHeight), $light);
+        $rowTop = (int)round($codexY + $index * 2 * $codexRowHeight); $rowCenter = (int)round($rowTop + $codexRowHeight * ($index === count($quotaRows) - 1 ? .5 : 1));
+        if ($index < count($quotaRows) - 1) imageline($image, $codexX + $p(18), (int)round($rowTop + 2 * $codexRowHeight), $codexRight - $p(18), (int)round($rowTop + 2 * $codexRowHeight), $light);
         $identityBaseline = $rowCenter - $p(8);
-        $source = (string)($account['source'] ?? 'codex'); $isGrok = $source === 'grok2api';
-        draw_service_icon($image, $isGrok ? 'grok2api' : 'codex', $codexX + $p(74), $identityBaseline + $p(3), $black, $white, $isGrok ? $p(79) - 76 : $p(3));
+        if (($account['source'] ?? '') === 'cursor') {
+            $metric = account_metric($account, 'included_usage');
+            $metricBaseline = $rowCenter - $p(14);
+            $progressX = $codexX + $p(365);
+            draw_service_icon($image, 'cursor', $codexX + $p(74), $identityBaseline + $p(3), $black, $white, (int)round((80 + $p(3)) * .67) - 68);
+            draw_text($image, $p(20), $codexX + $p(126), $identityBaseline, 'Cursor', $black);
+            draw_text($image, $p(13), $progressX, $metricBaseline, '7D', $grey);
+            draw_progress($image, $progressX, $metricBaseline + $p(10), $p(260), $p(18), $metric['used'] ?? null, $black, $grey, $white);
+            draw_text($image, $p(18), $progressX + $p(274), $metricBaseline + $p(28), $metric ? $metric['used'] . '%' : '--', $black);
+            draw_text($image, $p(18), $codexRight - $p(18), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, 605100), $black, 'right');
+            draw_text($image, $p(13), $codexRight - $p(18), $metricBaseline + $p(28), '重置', $grey, 'right');
+            continue;
+        }
+        draw_service_icon($image, 'codex', $codexX + $p(74), $identityBaseline + $p(3), $black, $white, $p(3));
         $displayName = quota_display_name($account);
-        if (!$isGrok && $displayName === 'Codex 1') $displayName = 'Codex S';
-        elseif (!$isGrok && $displayName === 'Codex 2') $displayName = 'Codex C';
+        if ($displayName === 'Codex 1') $displayName = 'Codex S';
+        elseif ($displayName === 'Codex 2') $displayName = 'Codex C';
         $nameX = $codexX + $p(126);
         draw_text($image, $p(20), $nameX, $identityBaseline, $displayName, $black);
         $nameBox = imagettfbbox((int)round($p(20 * $fontScale)), 0, FONT_FILE, $displayName);
         $nameRight = $nameX + max($nameBox[0], $nameBox[2], $nameBox[4], $nameBox[6]) - min($nameBox[0], $nameBox[2], $nameBox[4], $nameBox[6]);
-        draw_text($image, $p(17), $isGrok ? $nameX : $nameRight, $identityBaseline + $p(28), (string)($account['plan'] ?? '—'), $grey, $isGrok ? 'left' : 'right');
+        draw_text($image, $p(17), $nameRight, $identityBaseline + $p(28), (string)($account['plan'] ?? '—'), $grey, 'right');
         $fiveHourMetric = account_metric($account, 'five_hour') ?? []; $sevenDayMetric = account_metric($account, 'seven_day') ?? [];
         $progressX = $codexX + $p(365);
-        $metricRows = $isGrok
-            ? [['Build', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 0], ['Web', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 0]]
-            : [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
+        $metricRows = [['5H', $fiveHourMetric['used'] ?? null, $fiveHourMetric, 18300], ['7D', $sevenDayMetric['used'] ?? null, $sevenDayMetric, 605100]];
         foreach ($metricRows as $metricIndex => [$label, $used, $metric, $maxAheadSeconds]) {
             $metricBaseline = $rowCenter + $p(-41 + $metricIndex * $metricGroupGap);
             draw_text($image, $p(13), $progressX, $metricBaseline, $label, $grey);
             draw_progress($image, $progressX, $metricBaseline + $p(10), $p(260), $p(18), $used, $black, $grey, $white);
             draw_text($image, $p(18), $progressX + $p(274), $metricBaseline + $p(28), $used === null ? '--' : $used . '%', $black);
-            if ($isGrok) {
-                draw_text($image, $p(18), $codexRight - $p(18), $metricBaseline, quota_count_label($metric), $black, 'right');
-                draw_text($image, $p(13), $codexRight - $p(18), $metricBaseline + $p(28), '可用', $grey, 'right');
-            } else {
-                draw_text($image, $p(18), $codexRight - $p(18), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
-                draw_text($image, $p(13), $codexRight - $p(18), $metricBaseline + $p(28), '重置', $grey, 'right');
-            }
+            draw_text($image, $p(18), $codexRight - $p(18), $metricBaseline, reset_time_label($metric['reset_at'] ?? null, $maxAheadSeconds), $black, 'right');
+            draw_text($image, $p(13), $codexRight - $p(18), $metricBaseline + $p(28), '重置', $grey, 'right');
         }
     }
     render_grayscale_png($image);
@@ -1686,6 +1726,8 @@ function ingest_quota(array $config): void {
         if (is_string($account['plan'] ?? null) && trim($account['plan']) !== '') $entry['plan'] = substr(trim($account['plan']), 0, 20);
         $fiveHour = clean_metric($account['five_hour'] ?? null);
         $sevenDay = clean_metric($account['seven_day'] ?? null);
+        $includedUsage = clean_metric($account['included_usage'] ?? null);
+        if ($includedUsage) $entry['included_usage'] = $includedUsage;
         $fable = clean_metric($account['fable'] ?? null);
         if ($fiveHour) $entry['five_hour'] = $fiveHour;
         if ($sevenDay) $entry['seven_day'] = $sevenDay;

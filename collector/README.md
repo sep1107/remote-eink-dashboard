@@ -56,3 +56,14 @@ python3 push_grok2api_quota.py --check
 ```
 
 The normal mode also requires the dashboard variables shown above. It sends the Build/Web available percentage together with the available and total counts.
+
+## Cursor / Cockpit Tools
+
+`push_cockpit_cursor.mjs` reads the explicitly selected account from Cockpit's read-only SQLite index and encrypted detail cache. Set `CURSOR_ACCOUNT_EMAIL` locally; it never falls back to another account. It sends only an anonymous `Cursor` label, included-usage percentage, reset time and usage-period label. Credentials and identity are never serialized. Requires Node.js and the `sqlite3` CLI.
+
+```sh
+CURSOR_ACCOUNT_EMAIL=your-account@example.com node push_cockpit_cursor.mjs --check
+CURSOR_ACCOUNT_EMAIL=your-account@example.com node push_cockpit_cursor.mjs --json
+```
+
+Without either flag it uses the same `EINK_DASHBOARD_URL` and `EINK_DASHBOARD_INGEST_TOKEN` as the other collectors. The iPhone page has a separate Cursor card; ink frames place Cursor in a single 7D row below Codex, while DeepSeek and Grok share the compact service area. Run it on the same local schedule as the Codex and Claude collectors; refresh the Cockpit cache on that machine to update the source data.

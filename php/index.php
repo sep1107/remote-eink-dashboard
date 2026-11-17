@@ -565,12 +565,12 @@ function account_metric(array $account, string $key): ?array {
     return $clean;
 }
 
-function draw_balance_pool_panel($image, array $state, array $rect, int $fontSize, int $black, int $grey, int $white): void {
+function draw_balance_pool_panel($image, array $state, array $rect, int $fontSize, int $black, int $grey, int $white, bool $isRecorder = false): void {
     [$left, $top, $right, $bottom] = $rect;
     $width = $right - $left; $height = $bottom - $top; $middle = (int)(($left + $right) / 2);
     imageline($image, $middle, $top + 10, $middle, $bottom - 10, $grey);
     $fontScale = (float)($GLOBALS['dashboard_font_scale'] ?? 1);
-    $iconSize = (int)round($height * .26);
+    $iconSize = (int)round($height * .26) + ($isRecorder ? 3 : 0);
     foreach (['deepseek', 'grok2api'] as $index => $source) {
         $center = (int)round($left + ($index + .5) * $width / 2);
         $name = $source === 'deepseek' ? 'DeepSeek' : 'Grok';
@@ -583,7 +583,7 @@ function draw_balance_pool_panel($image, array $state, array $rect, int $fontSiz
         if ($source === 'deepseek') {
             $account = quota_source_account($state, 'deepseek');
             $balance = preg_replace('/^Balance\\s*/i', '', (string)($account['summary'] ?? '--'));
-            draw_text($image, $fontSize + 6, $center, (int)round($top + $height * .72), $balance, $black, 'center');
+            draw_text($image, $fontSize + ($isRecorder ? 6 : 9), $center, (int)round($top + $height * .72), $balance, $black, 'center');
         } else {
             $account = grok_quota_account($state);
             foreach (['five_hour' => 'Build', 'seven_day' => 'Web'] as $key => $label) {
@@ -1401,7 +1401,8 @@ function render_phone_frame(array $device, array $state, array $config, int $wid
         draw_text($image, $f(11), $serviceRight - $p(12), $metricBaseline + $p(30), '重置', $grey, 'right');
     }
     imageline($image, $serviceX, $weatherY + $p(272), $serviceRight, $weatherY + $p(272), $grey);
-    draw_balance_pool_panel($image, $state, [$serviceX, $weatherY + $p(272), $serviceRight, $serviceRect[3]], $f(11), $black, $grey, $white);
+    $isRecorder = ($device['id'] ?? '') === 'sogou-s1';
+    draw_balance_pool_panel($image, $state, [$serviceX, $weatherY + $p(272), $serviceRight, $serviceRect[3]], $f($isRecorder ? 14 : 11), $black, $grey, $white, $isRecorder);
 
     draw_text($image, $f(14), $margin + $p(16), $p(884), weather_advice($weather, $forecast), $grey);
 

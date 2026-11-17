@@ -141,4 +141,4 @@ Source code is available under the MIT License. Provider logos and trademarks in
 
 ### Cursor quota
 
-The PHP renderer supports a separate Cursor card on iPhone and a single 7D Cursor row below Codex on ink devices, with DeepSeek balance and Grok pool counts side by side in the service region. The local Cockpit collector requires an explicitly selected account; see `collector/README.md`.
+The PHP renderer supports a separate Cursor card plus side-by-side DeepSeek balance / Grok pool-count cards on iPhone, and a single 7D Cursor row below Codex on ink devices, with DeepSeek balance and Grok pool counts side by side in the service region. The local Cockpit collector requires an explicitly selected account; see `collector/README.md`.
